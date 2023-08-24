@@ -1,6 +1,7 @@
 import numpy as np
-from utils.model.optimize import opt
 import time
+from utils.model.optimize import opt
+from utils.visualize.dynamic import ga_dynamic_single
 
 # setup
 x_cts = np.array([0, 1, 2])
@@ -29,8 +30,8 @@ b_int = 0.35  # laplace crossover int variable b
 p_cts = 10  # power mutation real variable
 p_int = 4  # power mutation integer variable
 
-max_iter = 5000
-max_stall = 500
+max_iter = 1000
+max_stall = 200
 max_run = 16
 
 # optimize
@@ -46,3 +47,5 @@ print(f"GA takes {time.perf_counter() - start} seconds to execute. ")
 # violation = constraint_violation(np.array([0.2, 1.8, 1.90787, 1, 0, 0, 1]).reshape(7, 1), lin_lhs, lin_rhs, non_rhs)
 # objective = objective_function(np.array([0.2, 1.28, 1.954483, 1, 0, 0, 1]).reshape(7, 1))
 # violation = constraint_violation(best_ind.reshape(7, 1), lin_lhs, lin_rhs, non_rhs)
+
+animation = ga_dynamic_single(avg_fit, best_fit)
