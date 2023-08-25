@@ -31,7 +31,7 @@ p_cts = 10  # power mutation real variable
 p_int = 4  # power mutation integer variable
 
 max_iter = 1000
-max_stall = 200
+max_stall = 20
 max_run = 16
 
 # optimize

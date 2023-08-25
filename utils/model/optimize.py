@@ -7,7 +7,7 @@ from utils.model.core import population_constraint_violation, population_objecti
 
 @njit
 def _opt(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs, non_rhs, x_prob, a, b_cts, b_int, m_prob,
-         p_cts, p_int, size, max_iter, max_stall):
+         p_cts, p_int, size, max_iter, max_stall, tol=1e-4):
     avg_fitness = np.empty(max_iter)
     best_fitness = np.empty(max_iter)
     pool = generate_initial_sol(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, size)
@@ -22,7 +22,7 @@ def _opt(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs, non_rhs
         fitness = population_fitness(violation, obj_val)
         avg_fitness[i] = fitness.mean()
         idx = np.argmin(fitness)
-        if fitness[idx] <= best_obj:
+        if fitness[idx] <= best_obj - tol:
             best_obj = fitness[idx]
             best_ind = pool[idx]
             stall = 0
