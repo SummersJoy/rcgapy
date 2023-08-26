@@ -10,41 +10,22 @@ def objective_function(x):
 
 
 @njit(fastmath=True)
-def nonlinear_constraint1(x):
-    return x[5] ** 2 + x[0] ** 2 + x[1] ** 2 + x[2] ** 2
+def nonlinear_functions(x):
+    const1 = x[5] ** 2 + x[0] ** 2 + x[1] ** 2 + x[2] ** 2 - 5.5
+    const2 = x[1] ** 2 + x[4] ** 2 - 1.64
+    const3 = x[2] ** 2 + x[5] ** 2 - 4.25
+    const4 = x[2] ** 2 + x[4] ** 2 - 4.64
+    return const1, const2, const3, const4
 
 
-@njit(fastmath=True)
-def nonlinear_constraint2(x):
-    return x[1] ** 2 + x[4] ** 2
-
-
-@njit(fastmath=True)
-def nonlinear_constraint3(x):
-    return x[2] ** 2 + x[5] ** 2
-
-
-@njit(fastmath=True)
-def nonlinear_constraint4(x):
-    return x[2] ** 2 + x[4] ** 2
-
-
-@njit
-def single_constraint_violation(func, rhs, var):
-    lhs = func(var)[0]
-    diff = lhs - rhs
-    if diff > 0.:
-        return diff
-    return 0.
-
-
-@njit
-def nonlinear_const_violation(rhs, var):
-    violation1 = single_constraint_violation(nonlinear_constraint1, rhs[0], var)
-    violation2 = single_constraint_violation(nonlinear_constraint2, rhs[1], var)
-    violation3 = single_constraint_violation(nonlinear_constraint3, rhs[2], var)
-    violation4 = single_constraint_violation(nonlinear_constraint4, rhs[3], var)
-    return violation1 + violation2 + violation3 + violation4
+@njit()
+def nonlinear_constraints(x):
+    vals = nonlinear_functions(x)
+    res = 0.
+    for val in vals:
+        if val > 0.:
+            res += val
+    return res
 
 
 @njit
@@ -60,9 +41,9 @@ def linear_constraint_violation(lhs, rhs, var):
 
 
 @njit
-def constraint_violation(var, lin_lhs, lin_rhs, non_rhs):
+def constraint_violation(var, lin_lhs, lin_rhs):
     lin_vio = linear_constraint_violation(lin_lhs, lin_rhs, var)  # compute linear inequality violation
-    non_vio = nonlinear_const_violation(non_rhs, var)  # compute non-linear inequality violation
+    non_vio = nonlinear_constraints(var.T[0])  # compute non-linear inequality violation
     return lin_vio + non_vio
 
 

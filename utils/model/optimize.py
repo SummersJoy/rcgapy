@@ -6,7 +6,7 @@ from utils.model.core import population_constraint_violation, population_objecti
 
 
 @njit
-def _opt(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs, non_rhs, x_prob, a, b_cts, b_int, m_prob,
+def _opt(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs, x_prob, a, b_cts, b_int, m_prob,
          p_cts, p_int, size, max_iter, max_stall, tol=1e-4):
     avg_fitness = np.empty(max_iter)
     best_fitness = np.empty(max_iter)
@@ -16,7 +16,7 @@ def _opt(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs, non_rhs
     stall = 0
     count = 0
     for i in range(max_iter):
-        violation = population_constraint_violation(pool, lin_lhs, lin_rhs, non_rhs, x_cts, x_int,
+        violation = population_constraint_violation(pool, lin_lhs, lin_rhs, x_cts, x_int,
                                                     lb_cts, ub_cts, lb_int, ub_int)
         obj_val = population_objective_value(pool)
         fitness = population_fitness(violation, obj_val)
@@ -43,7 +43,7 @@ def _opt(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs, non_rhs
 
 
 @njit(parallel=True)
-def opt(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs, non_rhs, x_prob, a, b_cts, b_int, m_prob, p_cts,
+def opt(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs, x_prob, a, b_cts, b_int, m_prob, p_cts,
         p_int, size, max_iter, max_stall, max_run):
     res = np.empty(max_run)
     ind = np.empty((max_run, len(x_int) + len(x_cts)))
@@ -52,7 +52,7 @@ def opt(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs, non_rhs,
     pts_mat = np.empty(max_run)
     for i in prange(max_run):
         best_obj, best_ind, avg_fitness, best_fitness = _opt(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs,
-                                                             lin_rhs, non_rhs, x_prob, a, b_cts, b_int, m_prob, p_cts,
+                                                             lin_rhs, x_prob, a, b_cts, b_int, m_prob, p_cts,
                                                              p_int, size, max_iter, max_stall)
         res[i] = best_obj
         ind[i] = best_ind

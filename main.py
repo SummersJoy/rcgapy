@@ -19,7 +19,7 @@ lin_lhs = np.array([
     [0., 0., 1., 0., 0., 1., 0.],
     [1., 0., 0., 0., 0., 0., 1.]
 ])
-non_rhs = np.array([5.5, 1.64, 4.25, 4.64])
+# non_rhs = np.array([5.5, 1.64, 4.25, 4.64])
 
 # parameters
 x_prob = 0.8  # cross over probability
@@ -32,13 +32,12 @@ p_int = 4  # power mutation integer variable
 
 max_iter = 1000
 max_stall = 20
-max_run = 16
+max_run = 32
 
 # optimize
 start = time.perf_counter()
-best_obj, best_ind, avg_fit, best_fit = opt(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs, non_rhs,
-                                            x_prob, a, b_cts,
-                                            b_int, m_prob, p_cts, p_int, size, max_iter, max_stall, max_run)
+best_obj, best_ind, avg_fit, best_fit = opt(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs, x_prob, a,
+                                            b_cts, b_int, m_prob, p_cts, p_int, size, max_iter, max_stall, max_run)
 global_best_obj = 3.557463
 print(f"Gap: {np.round((best_obj - global_best_obj) / global_best_obj, 6)}")
 print(f"GA takes {time.perf_counter() - start} seconds to execute. ")
@@ -49,3 +48,12 @@ print(f"GA takes {time.perf_counter() - start} seconds to execute. ")
 # violation = constraint_violation(best_ind.reshape(7, 1), lin_lhs, lin_rhs, non_rhs)
 
 animation = ga_dynamic_single(avg_fit, best_fit)
+
+# num_trial = 100
+# bst = np.empty(num_trial)
+# for i in range(num_trial):
+#     best_obj, best_ind, avg_fit, best_fit = opt(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs, x_prob,
+#                                                 a, b_cts, b_int, m_prob, p_cts, p_int, size, max_iter, max_stall,
+#                                                 max_run)
+#     bst[i] = best_obj
+# print(f"The worst solution in {num_trial} run is {max(bst)}.")

@@ -5,13 +5,13 @@ from utils.model.operator import laplace_crossover, laplace_transform, power_mut
 
 
 @njit(parallel=True)
-def population_constraint_violation(population, lin_lhs, lin_rhs, non_rhs, x_cts, x_int, lb_cts, ub_cts, lb_int,
+def population_constraint_violation(population, lin_lhs, lin_rhs, x_cts, x_int, lb_cts, ub_cts, lb_int,
                                     ub_int):
     n, m = population.shape
     violation = np.empty(n)
     for i in prange(n):
         var = population[i]
-        violation[i] = constraint_violation(var.reshape(m, 1), lin_lhs, lin_rhs, non_rhs) + \
+        violation[i] = constraint_violation(var.reshape(m, 1), lin_lhs, lin_rhs) + \
                        bound_violation(var, x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int)
     return violation
 
@@ -118,4 +118,3 @@ def truncation_core(sol, x_int):
     for i in range(n):
         for j in range(num_int):
             sol[i, x_int[j]] = truncation(sol[i, x_int[j]], rng[i, j])
-
