@@ -12,11 +12,14 @@ def _opt(objective_function, x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_l
     avg_fitness = np.empty(max_iter)
     best_fitness = np.empty(max_iter)
     pool = generate_initial_sol(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, size)
+    dim1, dim2 = pool.shape
+    pool_mat = np.empty((dim1, dim2, max_iter))
     best_obj = np.inf
     best_ind = pool[0]
     stall = 0
     count = 0
     for i in range(max_iter):
+        pool_mat[:, :, i] = pool.copy()
         violation = population_constraint_violation(pool, lin_lhs, lin_rhs, x_cts, x_int,
                                                     lb_cts, ub_cts, lb_int, ub_int, nonlinear_functions)
         obj_val = population_objective_value(pool, objective_function)
@@ -38,9 +41,9 @@ def _opt(objective_function, x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_l
         count += 1
         if stall == max_stall:
             print(f"Genetic Algorithm quited at iteration {i}, max stall of {max_stall} reached")
-            return best_obj, best_ind, avg_fitness[:count], best_fitness[:count]
+            return best_obj, best_ind, avg_fitness[:count], best_fitness[:count], pool_mat[:, :, :count]
     print(f"Genetic Algorithm completed with maximum iteration {max_iter}")
-    return best_obj, best_ind, avg_fitness[:count], best_fitness[:count]
+    return best_obj, best_ind, avg_fitness[:count], best_fitness[:count], pool_mat[:, :, :count]
 
 
 @njit(parallel=True)
@@ -52,8 +55,8 @@ def opt(objective_function, x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lh
     best_fit_mat = np.empty((max_run, max_iter))
     pts_mat = np.empty(max_run)
     for i in prange(max_run):
-        best_obj, best_ind, avg_fitness, best_fitness = _opt(objective_function, x_cts, x_int, lb_cts, ub_cts, lb_int,
-                                                             ub_int, lin_lhs, lin_rhs, nonlinear_functions)
+        best_obj, best_ind, avg_fitness, best_fitness, _ = _opt(objective_function, x_cts, x_int, lb_cts, ub_cts,
+                                                                  lb_int, ub_int, lin_lhs, lin_rhs, nonlinear_functions)
         res[i] = best_obj
         ind[i] = best_ind
         num_pts = len(avg_fitness)
