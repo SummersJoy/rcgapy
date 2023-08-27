@@ -1,7 +1,37 @@
 import numpy as np
 from numba import njit, prange, boolean
-from utils.model.expr import constraint_violation, objective_function, bound_violation
-from utils.model.operator import laplace_crossover, laplace_transform, power_mutation, mutation_prob
+from utils.model.expr import objective_function
+from utils.model.constraint_handle import constraint_violation, bound_violation
+from utils.model.operator import laplace_crossover, laplace_transform, power_mutation, mutation_prob, \
+    tournament_selection
+from utils.numba.random import randint
+
+
+@njit
+def generate_initial_sol(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, size):
+    """
+    :param x_cts: indices of continuous decision variables in the variable array
+    :param x_int: indices of integer decision variables in the variable array
+    :param lb_cts: lower bound of each continuous decision variable
+    :param ub_cts: upper bound of each continuous decision variable
+    :param lb_int: lower bound of each integer decision variable
+    :param ub_int: upper bound of each integer decision variable
+    :param size: number of initial individuals
+    :return:
+    """
+    num_cts = len(lb_cts)
+    num_int = len(lb_int)
+    num_dv = num_cts + num_int
+    chromosome = np.empty((size, num_dv))
+    for j in range(num_cts):
+        cts_individual = np.random.uniform(lb_cts[j], ub_cts[j], size)
+        for k in range(size):
+            chromosome[k, x_cts[j]] = cts_individual[k]
+    for j in range(num_int):
+        int_individual = randint(lb_int[j], ub_int[j] + 1, size)
+        for k in range(size):
+            chromosome[k, x_int[j]] = int_individual[k]
+    return chromosome
 
 
 @njit(parallel=True)
@@ -95,6 +125,19 @@ def mutate_core(mating_pool, x_cts, m_prob, p_cts, lb_cts, ub_cts):
             if rand_cts[i, j] <= m_prob:
                 s = mutation_prob(power_distribution[i, j], p_cts)
                 mating_pool[i, x_cts[j]] = power_mutation(mating_pool[i, x_cts[j]], lb_cts[j], ub_cts[j], s, r[i, j])
+
+
+@njit(parallel=True)
+def get_mating_pool(population, fitness, pool_size=0, tournament_size=3):
+    # todo: performance enhancement
+    if pool_size == 0:
+        pool_size = len(population)
+    res = np.empty((pool_size, len(population[0])))
+    for i in prange(pool_size):
+        selected = tournament_selection(tournament_size, population, fitness)
+        for j in range(len(population[0])):
+            res[i][j] = selected[j]
+    return res
 
 
 @njit

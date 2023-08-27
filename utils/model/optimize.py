@@ -1,8 +1,7 @@
 import numpy as np
 from numba import njit, prange
-from utils.model.operator import generate_initial_sol, get_mating_pool
-from utils.model.core import population_constraint_violation, population_objective_value, population_fitness, \
-    do_crossover, do_mutation, truncation_core
+from utils.model.core import generate_initial_sol, get_mating_pool, population_constraint_violation, \
+    population_objective_value, population_fitness, do_crossover, do_mutation, truncation_core
 
 
 @njit

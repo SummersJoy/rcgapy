@@ -1,35 +1,7 @@
 import numpy as np
-from numba import njit, prange
+from numba import njit
 import math
-import random
-from utils.numba.random import randint, randint_unique
-
-
-@njit
-def generate_initial_sol(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, size):
-    """
-    :param x_cts: indices of continuous decision variables in the variable array
-    :param x_int: indices of integer decision variables in the variable array
-    :param lb_cts: lower bound of each continuous decision variable
-    :param ub_cts: upper bound of each continuous decision variable
-    :param lb_int: lower bound of each integer decision variable
-    :param ub_int: upper bound of each integer decision variable
-    :param size: number of initial individuals
-    :return:
-    """
-    num_cts = len(lb_cts)
-    num_int = len(lb_int)
-    num_dv = num_cts + num_int
-    chromosome = np.empty((size, num_dv))
-    for j in range(num_cts):
-        cts_individual = np.random.uniform(lb_cts[j], ub_cts[j], size)
-        for k in range(size):
-            chromosome[k, x_cts[j]] = cts_individual[k]
-    for j in range(num_int):
-        int_individual = randint(lb_int[j], ub_int[j] + 1, size)
-        for k in range(size):
-            chromosome[k, x_int[j]] = int_individual[k]
-    return chromosome
+from utils.numba.random import randint_unique
 
 
 @njit
@@ -86,17 +58,4 @@ def tournament_selection(tournament_size: int, candidates: np.array, fitness: np
     sample_fitness = fitness[sampled]
     best_ind = np.argmin(sample_fitness)
     return candidates[sampled[best_ind]]
-
-
-@njit(parallel=True)
-def get_mating_pool(population, fitness, pool_size=0, tournament_size=3):
-    # todo: performance enhancement
-    if pool_size == 0:
-        pool_size = len(population)
-    res = np.empty((pool_size, len(population[0])))
-    for i in prange(pool_size):
-        selected = tournament_selection(tournament_size, population, fitness)
-        for j in range(len(population[0])):
-            res[i][j] = selected[j]
-    return res
 
