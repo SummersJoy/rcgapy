@@ -27,7 +27,7 @@ print(f"Gap: {np.round((best_obj - global_best_obj) / global_best_obj, 6)}, tota
 print(f"GA takes {time.perf_counter() - start} seconds to execute. ")
 
 animation = ga_dynamic_single(avg_fit, best_fit)
-
+animation.save("./problem8.gif", writer="ffmpeg", fps=60)
 # num_trial = 100
 # bst = np.empty(num_trial)
 # for i in range(num_trial):
