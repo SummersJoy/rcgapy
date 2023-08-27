@@ -7,7 +7,8 @@ from param import x_prob, a, b_cts, b_int, m_prob, p_cts, p_int, size, max_iter,
 
 
 @njit
-def _opt(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs, tol=1e-4):
+def _opt(objective_function, x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs, nonlinear_functions,
+         tol=1e-4):
     avg_fitness = np.empty(max_iter)
     best_fitness = np.empty(max_iter)
     pool = generate_initial_sol(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, size)
@@ -17,8 +18,8 @@ def _opt(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs, tol=1e-
     count = 0
     for i in range(max_iter):
         violation = population_constraint_violation(pool, lin_lhs, lin_rhs, x_cts, x_int,
-                                                    lb_cts, ub_cts, lb_int, ub_int)
-        obj_val = population_objective_value(pool)
+                                                    lb_cts, ub_cts, lb_int, ub_int, nonlinear_functions)
+        obj_val = population_objective_value(pool, objective_function)
         fitness = population_fitness(violation, obj_val)
         avg_fitness[i] = fitness.mean()
         idx = np.argmin(fitness)
@@ -43,7 +44,7 @@ def _opt(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs, tol=1e-
 
 
 @njit(parallel=True)
-def opt(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs):
+def opt(objective_function, x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs, nonlinear_functions):
     num_vars = len(x_int) + len(x_cts)
     res = np.empty(max_run)
     ind = np.empty((max_run, num_vars))
@@ -51,8 +52,8 @@ def opt(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs):
     best_fit_mat = np.empty((max_run, max_iter))
     pts_mat = np.empty(max_run)
     for i in prange(max_run):
-        best_obj, best_ind, avg_fitness, best_fitness = _opt(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs,
-                                                             lin_rhs)
+        best_obj, best_ind, avg_fitness, best_fitness = _opt(objective_function, x_cts, x_int, lb_cts, ub_cts, lb_int,
+                                                             ub_int, lin_lhs, lin_rhs, nonlinear_functions)
         res[i] = best_obj
         ind[i] = best_ind
         num_pts = len(avg_fitness)
@@ -66,5 +67,5 @@ def opt(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs):
     avg_fit = avg_fit_mat[glb_best_idx, :pts_mat[glb_best_idx]]
     best_fit = best_fit_mat[glb_best_idx, :pts_mat[glb_best_idx]]
     # constraint violation
-    violation = constraint_violation(best_ind.reshape(num_vars, 1), lin_lhs, lin_rhs)
+    violation = constraint_violation(best_ind.reshape(num_vars, 1), lin_lhs, lin_rhs, nonlinear_functions)
     return best_obj, best_ind, avg_fit, best_fit, violation

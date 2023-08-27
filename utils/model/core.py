@@ -1,6 +1,5 @@
 import numpy as np
 from numba import njit, prange, boolean
-from utils.model.expr import objective_function
 from utils.model.constraint_handle import constraint_violation, bound_violation
 from utils.model.operator import laplace_crossover, laplace_transform, power_mutation, mutation_prob, \
     tournament_selection
@@ -36,18 +35,18 @@ def generate_initial_sol(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, size):
 
 @njit(parallel=True)
 def population_constraint_violation(population, lin_lhs, lin_rhs, x_cts, x_int, lb_cts, ub_cts, lb_int,
-                                    ub_int):
+                                    ub_int, nonlinear_functions):
     n, m = population.shape
     violation = np.empty(n)
     for i in prange(n):
         var = population[i]
-        violation[i] = constraint_violation(var.reshape(m, 1), lin_lhs, lin_rhs) + \
+        violation[i] = constraint_violation(var.reshape(m, 1), lin_lhs, lin_rhs, nonlinear_functions) + \
                        bound_violation(var, x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int)
     return violation
 
 
 @njit(parallel=True)
-def population_objective_value(population):
+def population_objective_value(population, objective_function):
     n, m = population.shape
     obj_val = np.empty(n)
     for i in prange(n):

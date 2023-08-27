@@ -1,9 +1,9 @@
 from numba import njit
-from utils.model.expr import nonlinear_functions
+# from utils.model.expr import nonlinear_functions
 
 
 @njit()
-def nonlinear_constraints(x):
+def nonlinear_constraints(x, nonlinear_functions):
     vals = nonlinear_functions(x)
     res = 0.
     for val in vals:
@@ -25,9 +25,9 @@ def linear_constraint_violation(lhs, rhs, var):
 
 
 @njit
-def constraint_violation(var, lin_lhs, lin_rhs):
+def constraint_violation(var, lin_lhs, lin_rhs, nonlinear_functions):
     lin_vio = linear_constraint_violation(lin_lhs, lin_rhs, var)  # compute linear inequality violation
-    non_vio = nonlinear_constraints(var.T[0])  # compute non-linear inequality violation
+    non_vio = nonlinear_constraints(var.T[0], nonlinear_functions)  # compute non-linear inequality violation
     return lin_vio + non_vio
 
 
