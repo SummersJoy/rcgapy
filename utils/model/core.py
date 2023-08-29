@@ -33,6 +33,42 @@ def generate_initial_sol(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, size):
     return chromosome
 
 
+@njit
+def generate_initial_sol_cts(x_cts, lb_cts, ub_cts, size):
+    # pure continuous variable type
+    num_cts = len(lb_cts)
+    num_dv = num_cts
+    chromosome = np.empty((size, num_dv))
+    fill_cts(x_cts, num_cts, lb_cts, ub_cts, size, chromosome)
+    return chromosome
+
+
+@njit
+def generate_initial_sol_int(x_int, lb_int, ub_int, size):
+    # pure integer type
+    num_int = len(lb_int)
+    num_dv = num_int
+    chromosome = np.empty((size, num_dv))
+    fill_int(x_int, num_int, lb_int, ub_int, size, chromosome)
+    return chromosome
+
+
+@njit
+def fill_cts(x_cts, num_cts, lb_cts, ub_cts, size, chromosome):
+    for j in range(num_cts):
+        cts_individual = np.random.uniform(lb_cts[j], ub_cts[j], size)
+        for k in range(size):
+            chromosome[k, x_cts[j]] = cts_individual[k]
+
+
+@njit
+def fill_int(x_int, num_int, lb_int, ub_int, size, chromosome):
+    for j in range(num_int):
+        int_individual = randint(lb_int[j], ub_int[j] + 1, size)
+        for k in range(size):
+            chromosome[k, x_int[j]] = int_individual[k]
+
+
 @njit(parallel=True)
 def population_constraint_violation(population, lin_lhs, lin_rhs, x_cts, x_int, lb_cts, ub_cts, lb_int,
                                     ub_int, nonlinear_functions):

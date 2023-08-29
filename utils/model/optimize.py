@@ -1,7 +1,8 @@
 import numpy as np
 from numba import njit, prange
-from utils.model.core import generate_initial_sol, get_mating_pool, population_constraint_violation, \
-    population_objective_value, population_fitness, do_crossover, do_mutation, truncation_core
+from utils.model.core import generate_initial_sol, generate_initial_sol_cts, generate_initial_sol_int, get_mating_pool, \
+    population_constraint_violation, population_objective_value, population_fitness, do_crossover, do_mutation, \
+    truncation_core
 from utils.model.constraint_handle import constraint_violation
 from param import x_prob, a, b_cts, b_int, m_prob, p_cts, p_int, size, max_iter, max_stall, max_run
 
@@ -56,7 +57,7 @@ def opt(objective_function, x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lh
     pts_mat = np.empty(max_run)
     for i in prange(max_run):
         best_obj, best_ind, avg_fitness, best_fitness, _ = _opt(objective_function, x_cts, x_int, lb_cts, ub_cts,
-                                                                  lb_int, ub_int, lin_lhs, lin_rhs, nonlinear_functions)
+                                                                lb_int, ub_int, lin_lhs, lin_rhs, nonlinear_functions)
         res[i] = best_obj
         ind[i] = best_ind
         num_pts = len(avg_fitness)

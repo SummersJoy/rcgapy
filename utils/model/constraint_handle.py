@@ -5,6 +5,8 @@ from numba import njit
 @njit()
 def nonlinear_constraints(x, nonlinear_functions):
     vals = nonlinear_functions(x)
+    if len(vals) == 1:
+        return vals[0]
     res = 0.
     for val in vals:
         if val > 0.:

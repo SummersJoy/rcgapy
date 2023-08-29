@@ -18,7 +18,7 @@ def objective_function(x):
 
 @njit(fastmath=True)
 def nonlinear_functions(x):
-    return 0., 0.
+    return (0.,)
 
 
 # problem setup
@@ -67,11 +67,10 @@ def animate(iter_id):
 
 
 anim = FuncAnimation(fig, animate, frames=pmt.shape[-1], interval=100, repeat=False)
-
-anim.save("./population.mp4", writer="imagemagick", fps=10)
-###########################################################
-animation = ga_dynamic_single(avg_fit, best_fit)
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.plot_surface(xx, yy, zz)
-plt.show()
+#
+anim.save("./population.gif", writer="imagemagick", fps=5)
+# animation = ga_dynamic_single(avg_fit, best_fit)
+# fig = plt.figure()
+# ax = fig.add_subplot(111, projection='3d')
+# ax.plot_surface(xx, yy, zz)
+# plt.show()
