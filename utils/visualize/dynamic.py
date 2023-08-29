@@ -72,7 +72,8 @@ def evolve_process(objective_function, pmt):
         plt.clf()
         h = plt.contourf(x, y, zz)
         for i in range(pmt.shape[0]):
-            plt.plot(pmt[i, 0, iter_id], pmt[i, 1, iter_id], "*", color="red")
+            if 5 >= pmt[i, 0, iter_id] >= -5 and 5 >= pmt[i, 1, iter_id] >= -5:
+                plt.plot(pmt[i, 0, iter_id], pmt[i, 1, iter_id], "*", color="red")
         plt.title(f"Generation Number: {iter_id}")
         plt.colorbar(h)
         return h
