@@ -49,3 +49,33 @@ def ga_dynamic_single(avg_fit, best_fit, max_frame=100):
     anim = FuncAnimation(fig, animate, interval=10, frames=len(l1), repeat=False)
     plt.show()
     return anim
+
+
+def evolve_process(objective_function, pmt):
+    x = np.linspace(-5, 5, 101)
+    y = np.linspace(-5, 5, 101)
+    var = np.empty((101, 2))
+    var[:, 0] = x
+    var[:, 1] = y
+    zz = np.empty((101, 101))
+    for i in range(101):
+        for j in range(101):
+            val = np.array([x[i], y[j]])
+            zz[i, j] = objective_function(val)
+
+    fig = plt.figure()
+    h = plt.contourf(x, y, zz)
+    plt.colorbar(h)
+
+    def animate(iter_id):
+        global h
+        plt.clf()
+        h = plt.contourf(x, y, zz)
+        for i in range(pmt.shape[0]):
+            plt.plot(pmt[i, 0, iter_id], pmt[i, 1, iter_id], "*", color="red")
+        plt.title(f"Generation Number: {iter_id}")
+        plt.colorbar(h)
+        return h
+
+    anim = FuncAnimation(fig, animate, frames=pmt.shape[-1], interval=1000, blit=False)
+    return anim

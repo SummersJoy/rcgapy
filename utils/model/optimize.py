@@ -8,8 +8,8 @@ from param import x_prob, a, b_cts, b_int, m_prob, p_cts, p_int, size, max_iter,
 
 
 @njit
-def _opt(objective_function, x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs, nonlinear_functions,
-         tol=1e-4):
+def opt_single(objective_function, x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lhs, lin_rhs, nonlinear_functions,
+               tol=1e-4):
     avg_fitness = np.empty(max_iter)
     best_fitness = np.empty(max_iter)
     pool = generate_initial_sol(x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, size)
@@ -56,8 +56,8 @@ def opt(objective_function, x_cts, x_int, lb_cts, ub_cts, lb_int, ub_int, lin_lh
     best_fit_mat = np.empty((max_run, max_iter))
     pts_mat = np.empty(max_run)
     for i in prange(max_run):
-        best_obj, best_ind, avg_fitness, best_fitness, _ = _opt(objective_function, x_cts, x_int, lb_cts, ub_cts,
-                                                                lb_int, ub_int, lin_lhs, lin_rhs, nonlinear_functions)
+        best_obj, best_ind, avg_fitness, best_fitness, _ = opt_single(objective_function, x_cts, x_int, lb_cts, ub_cts,
+                                                                      lb_int, ub_int, lin_lhs, lin_rhs, nonlinear_functions)
         res[i] = best_obj
         ind[i] = best_ind
         num_pts = len(avg_fitness)

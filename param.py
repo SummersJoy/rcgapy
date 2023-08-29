@@ -13,4 +13,4 @@ max_iter = 1000
 max_stall = 20
 max_run = 32
 
-size = 700  # initial population size
+size = 100  # initial population size
