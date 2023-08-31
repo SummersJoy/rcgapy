@@ -14,7 +14,7 @@ pip install -r requirements.txt
 ## Example
 In main.py, there is an example how to minimize a nonlinear objective function subject to linear, nonlinear
 and integer constraints. 
-![](C:\Users\bians\Documents\prob8.png)
+![](./assets/img/prob8.png)
 
 A few steps are required to model the problem.
 1. The objective function can be expressed as:
@@ -76,10 +76,10 @@ visualized by just one line of code:
 animation = ga_dynamic_single(avg_fit, best_fit)
 ```
 
-![](D:\ga\ga\problem8.gif)
+![](./assets/img/problem8.gif)
 
 In demo.py, there is a visualization of the population evolving process on the peaks function
 
-![](D:\ga\ga\population.gif)
+![](./assets/img/population.gif)
 
-![](D:\ga\ga\surface.png)
+![](./assets/img/surface.png)
