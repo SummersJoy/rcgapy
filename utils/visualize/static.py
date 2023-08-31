@@ -27,3 +27,4 @@ def plot_3d(objective_function):
     ax = fig.add_subplot(111, projection='3d')
     ax.plot_surface(xx, yy, zz)
     plt.show()
+    plt.savefig("surface.png")
