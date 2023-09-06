@@ -56,5 +56,35 @@ def route_retrieve(n, p, s):
             break
     return trip
 
+
+@njit
+def label2route(n, p, s, max_rl):
+    trip = np.zeros((n, max_rl + 1), dtype=int32)
+    t = -1
+    j = n
+    while True:
+        t += 1
+        i = p[j]
+        count = 0
+        for k in range(i + 1, j + 1):
+            trip[t, count] = s[k]
+            count += 1
+        j = i
+        if i == 0:
+            break
+    return trip[:(t+1), :]
+
+
+@njit
+def get_max_route_len(q, w):
+    n = len(q) - 1
+    demand = sorted(q[1:])
+    current = 0
+    for i in range(n):
+        current += demand[i]
+        if current > w:
+            return i - 1
+    return n
+
 # p, fitness = split(n, s, q, d, c, w, max_load)
 # trip = route_retrieve(n, p, s)

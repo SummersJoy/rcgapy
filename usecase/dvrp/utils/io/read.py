@@ -36,7 +36,7 @@ def read_xml(filename: str):
     cx = np.array(cx)
     cy = np.array(cy)
     qty = np.array(qty)
-    return cx, cy, qty, capacity
+    return cx, cy, qty, capacity, departure_node
 
 
 def value_extract(line: str, string: str):
