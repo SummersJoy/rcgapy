@@ -1,4 +1,4 @@
-from usecase.dvrp.utils.heuristics.local_search.operator import m1_cost_inter, do_m1_inter
+from usecase.dvrp.utils.heuristics.local_search.single_relocate import m1_cost_inter, m1_cost_intra, do_m1_inter, do_m1_intra
 from usecase.dvrp.utils.io.repr import trip_lookup
 
 
@@ -55,4 +55,15 @@ def test_operation_m1(c, trip, n):
                     if abs(fitness - get_trip_len(c, tmp) - gain) < 1e-4:
                         pass
                     else:
-                        print(f"m1 test failed at nodes {i}, {j},Cost difference: {fitness - get_trip_len(c, tmp) - gain}")
+                        print(f"m1 test inter route failed at nodes {i}, {j}, Cost difference: "
+                              f"{fitness - get_trip_len(c, tmp) - gain}")
+                else:
+                    gain = m1_cost_intra(c, r1, pos1, pos2, trip)
+                    tmp = trip.copy()
+                    do_m1_intra(r1, pos1, pos2, tmp)
+                    if abs(fitness - get_trip_len(c, tmp) - gain) < 1e-4:
+                        pass
+                    else:
+                        print(f"m1 test intra route failed at nodes {i}, {j},{pos1},{pos2}, Cost difference: "
+                              f"{fitness - get_trip_len(c, tmp) - gain}")
+    print("m1 operation test passed!")
