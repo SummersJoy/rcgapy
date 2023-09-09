@@ -1,5 +1,20 @@
-from usecase.dvrp.utils.heuristics.local_search.single_relocate import m1_cost_inter, m1_cost_intra, do_m1_inter, do_m1_intra
+import numpy as np
+import bisect
+from numba import njit
+from usecase.dvrp.utils.heuristics.local_search.single_relocate import m1_cost_inter, m1_cost_intra, do_m1_inter, \
+    do_m1_intra
 from usecase.dvrp.utils.io.repr import trip_lookup
+from utils.numba.random import bisect as nb_bisect
+
+
+def test_nb_bisect():
+    for _ in range(1000):
+        res = np.sort(np.random.random(1000))
+        val = np.random.random(1)
+        control_val = bisect.bisect(res, val)
+        test_val = nb_bisect(res, val)
+        assert control_val == test_val + 1
+    print(f"numba bisect test passed!")
 
 
 def trip_test(trips, num):
@@ -18,6 +33,7 @@ def trip_test(trips, num):
         print("Trip test passed!")
 
 
+@njit
 def get_route_len(c, route):
     res = c[0, route[0]]
     for i in range(len(route) - 1):
@@ -28,6 +44,7 @@ def get_route_len(c, route):
     return res
 
 
+@njit
 def get_trip_len(c, trip):
     res = 0
     for route in trip:
@@ -35,9 +52,11 @@ def get_trip_len(c, trip):
     return res
 
 
+@njit
 def test_operation_m1(c, trip, n):
     """
     test 2 neighborhood search
+    for empty route, client v is expressed as pos2=-1
     """
     lookup = trip_lookup(trip, n)
     fitness = get_trip_len(c, trip)

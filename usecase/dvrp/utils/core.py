@@ -84,4 +84,8 @@ def get_initial_solution(n, size, q, d, c, w, max_load, delta):
 
     return res, ind_fitness, restart
 
+
 # res = get_initial_solution(50, 100)
+@njit
+def binary_tournament_selection():
+    pass
