@@ -5,7 +5,7 @@ from usecase.dvrp.utils.core import get_initial_solution
 from usecase.dvrp.utils.split import split, label2route, get_max_route_len
 from usecase.dvrp.utils.test import trip_test, test_operation_m1
 
-filename = "D:\\ga\\ga\\data\\dvrp\\christofides\\CMT05.xml"
+filename = "D:\\ga\\ga\\data\\dvrp\\christofides\\CMT01.xml"
 cx, cy, q, w, depot = read_xml(filename)
 cx = reformat_depot(cx)
 cy = reformat_depot(cy)

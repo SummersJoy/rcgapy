@@ -3,7 +3,7 @@ import bisect
 from numba import njit
 from usecase.dvrp.utils.heuristics.local_search.single_relocate import m1_cost_inter, m1_cost_intra, do_m1_inter, \
     do_m1_intra
-from usecase.dvrp.utils.io.repr import trip_lookup
+from usecase.dvrp.utils.route.repr import trip_lookup
 from utils.numba.random import bisect as nb_bisect
 
 

@@ -1,5 +1,5 @@
 import numpy as np
-from numba import njit, int32
+from numba import njit, int32, prange
 from utils.numba.bisect import bisect
 
 
@@ -49,3 +49,15 @@ def get_cdf(n: int):
     for i in range(1, n):
         res[i] = const * i
     return res
+
+
+@njit
+def randint(low, high, n):
+    res = np.empty(n, dtype=int32)
+    for i in range(n):
+        res[i] = np.random.randint(low, high)
+    return res
+
+# %timeit np.random.randint(1,20,100)
+# %timeit randint_nb(1,20,100)
+# %timeit randint(1, 20, 100)
