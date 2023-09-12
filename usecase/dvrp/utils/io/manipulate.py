@@ -1,4 +1,5 @@
 import numpy as np
+from numba import njit, int32
 
 
 def get_dist_mat(cx, cy, decimals=3):
@@ -12,8 +13,9 @@ def get_dist_mat(cx, cy, decimals=3):
     return res
 
 
+@njit
 def fill_zero(n, arr):
-    tmp = np.zeros(n + 1)
+    tmp = np.zeros(n + 1, dtype=int32)
     tmp[1:] = arr
     return tmp
 
@@ -21,6 +23,6 @@ def fill_zero(n, arr):
 def reformat_depot(coord):
     n = len(coord)
     tmp = np.empty(n)
-    tmp[1:] = coord[:n-1]
+    tmp[1:] = coord[:n - 1]
     tmp[0] = coord[n - 1]
     return tmp

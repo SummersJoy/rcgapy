@@ -3,7 +3,7 @@ import bisect
 from numba import njit
 from usecase.dvrp.utils.heuristics.local_search.single_relocate import m1_cost_inter, m1_cost_intra, do_m1_inter, \
     do_m1_intra
-from usecase.dvrp.utils.route.repr import trip_lookup
+from usecase.dvrp.utils.route.repr import trip_lookup, get_trip_len
 from utils.numba.random import bisect as nb_bisect
 
 
@@ -31,25 +31,6 @@ def trip_test(trips, num):
         raise ValueError("Check trip construction function!")
     else:
         print("Trip test passed!")
-
-
-@njit
-def get_route_len(c, route):
-    res = c[0, route[0]]
-    for i in range(len(route) - 1):
-        if route[i] == 0:
-            break
-        else:
-            res += c[route[i], route[i + 1]]
-    return res
-
-
-@njit
-def get_trip_len(c, trip):
-    res = 0
-    for route in trip:
-        res += get_route_len(c, route)
-    return res
 
 
 @njit

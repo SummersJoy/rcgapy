@@ -1,6 +1,11 @@
 import numpy as np
-from numba import njit, int32
+from numba import njit, int32, jit
 from usecase.dvrp.utils.split import split
+from usecase.dvrp.utils.io.manipulate import fill_zero
+from utils.numba.bisect import bisect
+from usecase.dvrp.utils.heuristics.local_search.first_descend import descend
+from usecase.dvrp.utils.split import split, label2route
+from usecase.dvrp.utils.route.repr import decoding, get_trip_dmd
 
 
 @njit
@@ -18,7 +23,7 @@ def lox(p1, p2):
     c2[i:j] = p2[i:j]
     fill_chromosome(p1, p2, c1, i, j, n)
     fill_chromosome(p2, p1, c2, i, j, n)
-    return c1, c2, i, j
+    return c1, c2
 
 
 @njit
@@ -87,5 +92,87 @@ def get_initial_solution(n, size, q, d, c, w, max_load, delta):
 
 # res = get_initial_solution(50, 100)
 @njit
-def binary_tournament_selection():
-    pass
+def binary_tournament_selection(population: np.ndarray) -> np.ndarray:
+    """
+    Tournament selection on a sorted population
+    """
+    n = len(population)
+    id1 = np.random.randint(0, n)
+    id2 = np.random.randint(0, n)
+    while id1 == id2:
+        id2 = np.random.randint(0, n)
+    if id1 < id2:
+        return population[id1]
+    else:
+        return population[id2]
+
+
+@njit
+def check_spaced(fitness: np.ndarray, val: float, delta: float) -> bool:
+    """
+    check if new chromosome is well-spaced in the population
+    """
+    for f in fitness:
+        if abs(f - val) < delta:
+            return False
+    return True
+
+
+# @njit
+def optimize(pool, ind_fit, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta):
+    for i in range(alpha):
+        p1 = binary_tournament_selection(pool)
+        p2 = binary_tournament_selection(pool)
+        child1, child2 = lox(p1[1:], p2[1:])
+        child = child1 if np.random.random() < 0.5 else child2
+        child = fill_zero(n, child)
+        label, val = split(n, child, q, d, c, w, max_load)
+        trip = label2route(n, label, child, max_route_len)
+        k = np.random.randint(size // 2, size)
+        modified_fitness = np.concatenate((ind_fit[:k], ind_fit[k + 1:]))
+        if np.random.random() < pm:
+            trip_dmd = get_trip_dmd(trip, q)
+            f = val
+            mutation(trip, n, c, val, trip_dmd, q, w)
+            chromosome = decoding(trip, n)
+            _, fitness = split(n, chromosome, q, d, c, w, max_load)
+            is_spaced = check_spaced(modified_fitness, fitness, delta=1)
+            if is_spaced:
+                child = chromosome
+                val = fitness
+            else:
+                val = f
+
+        is_spaced = check_spaced(modified_fitness, val, delta=1)
+        if is_spaced:
+            idx = bisect(modified_fitness, val) + 1
+            if idx == k:
+                pool[k] = child
+                ind_fit[k] = val
+            elif idx < k:
+                pool = np.concatenate((pool[:idx, :], child.reshape((1, n + 1)), pool[idx:k, :], pool[(k + 1):, :]))
+                if len(pool) != size:
+                    print(f"false 1: {len(pool)}, iter: {i}, idx: {idx}, k: {k}")
+                ind_fit = np.concatenate((ind_fit[:idx], val * np.ones(1), ind_fit[idx:k], ind_fit[(k + 1):]))
+            else:
+                pool = np.concatenate((pool[:k, :], pool[(k + 1):idx, :], child.reshape((1, n + 1)), pool[idx:, :]))
+                if len(pool) != size:
+                    print(f"false 2: {len(pool)}, iter {i}, idx: {idx}, k: {k}")
+                ind_fit = np.concatenate((ind_fit[:k], ind_fit[(k + 1):idx], val * np.ones(1), ind_fit[idx:]))
+            # pool = np.concatenate((pool[:idx + 1, :], child.reshape((1, n + 1)), pool[idx + 2:, :]), )
+            # ind_fit = np.concatenate((ind_fit[:idx + 1], val * np.ones(1), ind_fit[idx + 2:]))
+    return pool, ind_fit
+
+
+@njit
+def mutation(trip, n, c, fitness, trip_dmd, q, w):
+    prev = 0
+    while True:
+        gain = descend(trip, n, c, trip_dmd, q, w)
+        if gain < 0 or abs(gain - prev) < 1e-4:
+            break
+        else:
+            fitness -= gain
+            prev = gain
+        # print(f"gain: {gain}, fitness: {fitness}")
+    return fitness
