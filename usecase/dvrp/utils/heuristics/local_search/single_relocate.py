@@ -63,3 +63,53 @@ def do_m1_intra(r, pos1, pos2, trip):
     else:
         trip[r] = np.concatenate(
             (route[:pos2 + 1], route[pos1] * np.ones(1), route[(pos2 + 1):pos1], route[pos1 + 1:]))
+
+
+@njit
+def m1_lookup_inter_update(trip: np.ndarray, r1: int, r2: int, pos1: int, pos2: int, lookup: np.ndarray):
+    """
+    update trip lookup table after inter route relocation
+    """
+    u = trip[r1, pos1]
+    n_rol, n_col = trip.shape
+    for i in range(pos1 + 1, n_col):
+        cust = trip[r1, i]
+        if cust == 0:
+            break
+        lookup[cust, 1] -= 1
+    # for cust in trip[r1, (pos1 + 1):]:
+    #     if cust == 0:
+    #         break
+    #     lookup[cust, 1] -= 1
+    # for cust in trip[r2, (pos2 + 1):]:
+    for i in range(pos2 + 1, n_col):
+        cust = trip[r2, i]
+        if cust == 0:
+            break
+        lookup[cust, 1] += 1
+    lookup[u, 0] = r2
+    lookup[u, 1] = pos2 + 1
+
+
+@njit
+def m1_lookup_intra_update(trip: np.ndarray, r1: int, pos1: int, pos2: int, lookup: np.ndarray):
+    """
+    update trip lookup table after intra route relocation
+    """
+    u = trip[r1, pos1]
+    if pos1 < pos2:
+        # for cust in trip[r1, (pos1 + 1):(pos2+1)]:
+        for i in range(pos1 + 1, pos2 + 1):
+            cust = trip[r1, i]
+            if cust == 0:
+                break
+            lookup[cust, 1] -= 1
+        lookup[u, 1] = pos2
+    elif pos1 > pos2:
+        lookup[u, 1] = pos2 + 1
+        # for cust in trip[r1, (pos2 + 1):pos1]:
+        for i in range(pos2 + 1, pos1):
+            cust = trip[r1, i]
+            lookup[cust, 1] += 1
+    else:
+        raise ValueError(f"Duplicated i, j: {u}")

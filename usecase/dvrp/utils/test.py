@@ -5,6 +5,7 @@ from usecase.dvrp.utils.heuristics.local_search.single_relocate import m1_cost_i
     do_m1_intra
 from usecase.dvrp.utils.route.repr import trip_lookup, get_trip_len
 from utils.numba.random import bisect as nb_bisect
+from usecase.dvrp.utils.heuristics.local_search.single_relocate import m1_lookup_inter_update, m1_lookup_intra_update
 
 
 def test_nb_bisect():
@@ -67,3 +68,28 @@ def test_operation_m1(c, trip, n):
                         print(f"m1 test intra route failed at nodes {i}, {j},{pos1},{pos2}, Cost difference: "
                               f"{fitness - get_trip_len(c, tmp) - gain}")
     print("m1 operation test passed!")
+
+
+def test_lookup(trip, n):
+    lookup = trip_lookup(trip, n)
+    for i in range(1, n + 1):
+        for j in range(1, n + 1):
+            if i != j:
+                r1 = lookup[i, 0]
+                pos1 = lookup[i, 1]
+                r2 = lookup[j, 0]
+                pos2 = lookup[j, 1]
+                if r1 != r2:
+                    m1_lookup_inter_update(trip, r1, r2, pos1, pos2, lookup)
+                    do_m1_inter(r1, r2, pos1, pos2, trip)
+                    lookup1 = trip_lookup(trip, n)
+                    if not np.allclose(lookup1, lookup):
+                        print("lookup test inter failed")
+                        raise ValueError("failed")
+                else:
+                    m1_lookup_intra_update(trip, r1, pos1, pos2, lookup)
+                    do_m1_intra(r1, pos1, pos2, trip)
+                    lookup1 = trip_lookup(trip, n)
+                    if not np.allclose(lookup1, lookup):
+                        print("lookup test intra failed")
+                        raise ValueError("failed")

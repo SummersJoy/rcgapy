@@ -1,11 +1,10 @@
 import numpy as np
-from numba import njit, int32, jit
-from usecase.dvrp.utils.split import split
+from numba import njit, int32
 from usecase.dvrp.utils.io.manipulate import fill_zero
 from utils.numba.bisect import bisect
 from usecase.dvrp.utils.heuristics.local_search.first_descend import descend
 from usecase.dvrp.utils.split import split, label2route
-from usecase.dvrp.utils.route.repr import decoding, get_trip_dmd
+from usecase.dvrp.utils.route.repr import decoding, get_trip_dmd, trip_lookup
 
 
 @njit
@@ -119,7 +118,11 @@ def check_spaced(fitness: np.ndarray, val: float, delta: float) -> bool:
 
 
 # @njit
-def optimize(pool, ind_fit, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta):
+def optimize(max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delta):
+    pool, ind_fit, restart = get_initial_solution(n, size, q, d, c, w, max_load, delta)
+    ordered_idx = np.argsort(ind_fit)
+    pool = pool[ordered_idx, :]
+    ind_fit = ind_fit[ordered_idx]
     for i in range(alpha):
         p1 = binary_tournament_selection(pool)
         p2 = binary_tournament_selection(pool)
@@ -133,7 +136,8 @@ def optimize(pool, ind_fit, max_route_len, n, q, d, c, w, max_load, size, pm, al
         if np.random.random() < pm:
             trip_dmd = get_trip_dmd(trip, q)
             f = val
-            mutation(trip, n, c, val, trip_dmd, q, w)
+            lookup = trip_lookup(trip, n)
+            mutation(trip, n, c, val, trip_dmd, q, w, lookup)
             chromosome = decoding(trip, n)
             _, fitness = split(n, chromosome, q, d, c, w, max_load)
             is_spaced = check_spaced(modified_fitness, fitness, delta=1)
@@ -145,6 +149,7 @@ def optimize(pool, ind_fit, max_route_len, n, q, d, c, w, max_load, size, pm, al
 
         is_spaced = check_spaced(modified_fitness, val, delta=1)
         if is_spaced:
+            # todo: modified fitness has len 29 but ind_fit has 30
             idx = bisect(modified_fitness, val) + 1
             if idx == k:
                 pool[k] = child
@@ -155,20 +160,23 @@ def optimize(pool, ind_fit, max_route_len, n, q, d, c, w, max_load, size, pm, al
                     print(f"false 1: {len(pool)}, iter: {i}, idx: {idx}, k: {k}")
                 ind_fit = np.concatenate((ind_fit[:idx], val * np.ones(1), ind_fit[idx:k], ind_fit[(k + 1):]))
             else:
+                ind_fit_prev = ind_fit.copy()
                 pool = np.concatenate((pool[:k, :], pool[(k + 1):idx, :], child.reshape((1, n + 1)), pool[idx:, :]))
                 if len(pool) != size:
                     print(f"false 2: {len(pool)}, iter {i}, idx: {idx}, k: {k}")
                 ind_fit = np.concatenate((ind_fit[:k], ind_fit[(k + 1):idx], val * np.ones(1), ind_fit[idx:]))
             # pool = np.concatenate((pool[:idx + 1, :], child.reshape((1, n + 1)), pool[idx + 2:, :]), )
             # ind_fit = np.concatenate((ind_fit[:idx + 1], val * np.ones(1), ind_fit[idx + 2:]))
+            if not np.allclose(ind_fit, np.sort(ind_fit)):
+                raise ValueError(f"index: {idx}, k:{k}")
     return pool, ind_fit
 
 
 @njit
-def mutation(trip, n, c, fitness, trip_dmd, q, w):
+def mutation(trip, n, c, fitness, trip_dmd, q, w, lookup):
     prev = 0
     while True:
-        gain = descend(trip, n, c, trip_dmd, q, w)
+        gain = descend(trip, n, c, trip_dmd, q, w, lookup)
         if gain < 0 or abs(gain - prev) < 1e-4:
             break
         else:
