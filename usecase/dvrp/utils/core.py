@@ -1,5 +1,5 @@
 import numpy as np
-from numba import njit, int32
+from numba import njit, int32, prange
 from usecase.dvrp.utils.io.manipulate import fill_zero
 from utils.numba.bisect import bisect
 from usecase.dvrp.utils.heuristics.local_search.first_descend import descend
@@ -181,5 +181,16 @@ def mutation(trip, n, c, fitness, trip_dmd, q, w, lookup):
         else:
             fitness -= gain
             prev = gain
-        # print(f"gain: {gain}, fitness: {fitness}")
     return fitness
+
+
+@njit(parallel=True)
+def multi_start(max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delta, rho):
+    fitness = np.empty(rho)
+    sol = np.empty((rho, n + 1), dtype=int32)
+    for i in prange(rho):
+        pool, ind_fit = optimize(max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delta)
+        fitness[i] = ind_fit[0]
+        sol[i] = pool[0]
+    idx = np.argmin(fitness)
+    return sol[idx], fitness[idx]

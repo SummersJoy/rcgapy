@@ -46,16 +46,23 @@ def m1_cost_intra(c, r, pos1, pos2, trip):
 
 
 @njit
-def do_m1_inter(r1, r2, pos1, pos2, trip):
+def do_m1_inter(r1, r2, pos1, pos2, trip, lookup, trip_dmd, u_dmd):
+    # update lookup table
+    m1_lookup_inter_update(trip, r1, r2, pos1, pos2, lookup)
+    # update trip routes
     route_id1 = trip[r1]
     route_id2 = trip[r2]
     u = route_id1[pos1]
     trip[r1] = np.concatenate((route_id1[:pos1], route_id1[pos1 + 1:], np.zeros(1)))
     trip[r2] = np.concatenate((route_id2[:pos2 + 1], u * np.ones(1), route_id2[(pos2 + 1):-1]))
+    # update route demand
+    trip_dmd[r1] -= u_dmd
+    trip_dmd[r2] += u_dmd
 
 
 @njit
-def do_m1_intra(r, pos1, pos2, trip):
+def do_m1_intra(r, pos1, pos2, trip, lookup):
+    m1_lookup_intra_update(trip, r, pos1, pos2, lookup)
     route = trip[r]
     if pos1 < pos2:
         trip[r] = np.concatenate(

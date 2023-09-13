@@ -1,11 +1,11 @@
 import numpy as np
 from usecase.dvrp.utils.io.read import read_xml
 from usecase.dvrp.utils.io.manipulate import get_dist_mat, reformat_depot, fill_zero
-from usecase.dvrp.utils.core import optimize
+from usecase.dvrp.utils.core import optimize, multi_start
 from usecase.dvrp.utils.split import split, get_max_route_len
 from usecase.dvrp.utils.visualize.route import plot_sol
 from usecase.dvrp.utils.split import label2route
-
+from usecase.dvrp.utils.test import test_operation_m2
 # parameters
 pm = 0.05
 size = 30
@@ -13,9 +13,9 @@ max_load = 10000
 alpha = 30000
 beta = 2000
 delta = 0.5
-pho = 8  # number of restarts
+rho = 16  # number of restarts
 
-filename = "D:\\ga\\ga\\data\\dvrp\\christofides\\CMT05.xml"
+filename = "D:\\ga\\ga\\data\\dvrp\\christofides\\CMT01.xml"
 cx, cy, q, w, depot = read_xml(filename)
 cx = reformat_depot(cx)
 cy = reformat_depot(cy)
@@ -35,6 +35,8 @@ print(min(ind_fit))
 s = pool[0]
 label, fitness = split(n, s, q, d, c, w, max_load)
 trip = label2route(n, label, s, max_route_len)
+
+test_operation_m2(c, trip, n, q, np.ones((len(trip), 10)))
 # trip_test(trip, n)
 # test_operation_m1(c, trip, n)
 for i in range(size):
@@ -42,4 +44,9 @@ for i in range(size):
     if f != ind_fit[i]:
         print("failed")
 
+plot_sol(cx, cy, trip)
+
+sol, fit = multi_start(max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delta, rho)
+label, fitness = split(n, sol, q, d, c, w, max_load)
+trip = label2route(n, label, s, max_route_len)
 plot_sol(cx, cy, trip)
