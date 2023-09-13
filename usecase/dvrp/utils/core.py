@@ -106,7 +106,7 @@ def binary_tournament_selection(population: np.ndarray) -> np.ndarray:
         return population[id2]
 
 
-@njit
+@njit(fastmath=True)
 def check_spaced(fitness: np.ndarray, val: float, delta: float) -> bool:
     """
     check if new chromosome is well-spaced in the population
@@ -117,13 +117,16 @@ def check_spaced(fitness: np.ndarray, val: float, delta: float) -> bool:
     return True
 
 
-# @njit
+@njit
 def optimize(max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delta):
     pool, ind_fit, restart = get_initial_solution(n, size, q, d, c, w, max_load, delta)
     ordered_idx = np.argsort(ind_fit)
     pool = pool[ordered_idx, :]
     ind_fit = ind_fit[ordered_idx]
-    for i in range(alpha):
+    a = 0
+    b = 0
+    mid = size // 2
+    while a != alpha and b != beta:
         p1 = binary_tournament_selection(pool)
         p2 = binary_tournament_selection(pool)
         child1, child2 = lox(p1[1:], p2[1:])
@@ -131,7 +134,7 @@ def optimize(max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delt
         child = fill_zero(n, child)
         label, val = split(n, child, q, d, c, w, max_load)
         trip = label2route(n, label, child, max_route_len)
-        k = np.random.randint(size // 2, size)
+        k = np.random.randint(mid, size)
         modified_fitness = np.concatenate((ind_fit[:k], ind_fit[k + 1:]))
         if np.random.random() < pm:
             trip_dmd = get_trip_dmd(trip, q)
@@ -140,35 +143,31 @@ def optimize(max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delt
             mutation(trip, n, c, val, trip_dmd, q, w, lookup)
             chromosome = decoding(trip, n)
             _, fitness = split(n, chromosome, q, d, c, w, max_load)
-            is_spaced = check_spaced(modified_fitness, fitness, delta=1)
+            is_spaced = check_spaced(modified_fitness, fitness, delta)
             if is_spaced:
                 child = chromosome
                 val = fitness
             else:
                 val = f
 
-        is_spaced = check_spaced(modified_fitness, val, delta=1)
+        is_spaced = check_spaced(modified_fitness, val, delta)
         if is_spaced:
-            # todo: modified fitness has len 29 but ind_fit has 30
+            a += 1
             idx = bisect(modified_fitness, val) + 1
             if idx == k:
                 pool[k] = child
                 ind_fit[k] = val
             elif idx < k:
                 pool = np.concatenate((pool[:idx, :], child.reshape((1, n + 1)), pool[idx:k, :], pool[(k + 1):, :]))
-                if len(pool) != size:
-                    print(f"false 1: {len(pool)}, iter: {i}, idx: {idx}, k: {k}")
                 ind_fit = np.concatenate((ind_fit[:idx], val * np.ones(1), ind_fit[idx:k], ind_fit[(k + 1):]))
             else:
-                ind_fit_prev = ind_fit.copy()
+                idx += 1
                 pool = np.concatenate((pool[:k, :], pool[(k + 1):idx, :], child.reshape((1, n + 1)), pool[idx:, :]))
-                if len(pool) != size:
-                    print(f"false 2: {len(pool)}, iter {i}, idx: {idx}, k: {k}")
                 ind_fit = np.concatenate((ind_fit[:k], ind_fit[(k + 1):idx], val * np.ones(1), ind_fit[idx:]))
-            # pool = np.concatenate((pool[:idx + 1, :], child.reshape((1, n + 1)), pool[idx + 2:, :]), )
-            # ind_fit = np.concatenate((ind_fit[:idx + 1], val * np.ones(1), ind_fit[idx + 2:]))
-            if not np.allclose(ind_fit, np.sort(ind_fit)):
-                raise ValueError(f"index: {idx}, k:{k}")
+            if idx == 0:
+                b = 0
+            else:
+                b += 1
     return pool, ind_fit
 
 

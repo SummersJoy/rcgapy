@@ -15,7 +15,7 @@ beta = 2000
 delta = 0.5
 pho = 8  # number of restarts
 
-filename = "D:\\ga\\ga\\data\\dvrp\\christofides\\CMT01.xml"
+filename = "D:\\ga\\ga\\data\\dvrp\\christofides\\CMT05.xml"
 cx, cy, q, w, depot = read_xml(filename)
 cx = reformat_depot(cx)
 cy = reformat_depot(cy)
