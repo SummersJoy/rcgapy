@@ -71,7 +71,7 @@ def test_operation_m1(c, trip, n):
     print("m1 operation test passed!")
 
 
-@njit
+
 def test_operation_m2(c, trip, n, q, trip_dmd):
     """
     test 2 neighborhood search

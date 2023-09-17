@@ -1,5 +1,5 @@
 import numpy as np
-from numba import njit
+from numba import njit, int32
 
 
 @njit
@@ -31,3 +31,20 @@ def get_angle(cx, cy):
         else:
             res[i] = 180.0 + np.arctan(dy / dx) * 180.0 / np.pi
     return np.round(res, 3)
+
+
+@njit
+def near_neighbor(angle, threshold=45):
+    n = len(angle)
+    res = np.zeros((n, n), dtype=int32)
+    max_count = 0
+    for i in range(1, n):
+        agl = angle[i]
+        count = 0
+        for j in range(1, n):
+            if i != j and agl - threshold <= angle[j] <= agl + threshold:
+                res[i, count] = j
+                count += 1
+        if count > max_count:
+            max_count = count
+    return res[:, :max_count]

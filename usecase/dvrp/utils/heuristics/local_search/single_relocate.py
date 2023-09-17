@@ -120,3 +120,26 @@ def m1_lookup_intra_update(trip: np.ndarray, r1: int, pos1: int, pos2: int, look
             lookup[cust, 1] += 1
     else:
         raise ValueError(f"Duplicated i, j: {u}")
+
+
+@njit
+def do_m1(i, j, lookup, q, trip_dmd, w, c, trip):
+    r1 = lookup[i, 0]
+    pos1 = lookup[i, 1]
+    r2 = lookup[j, 0]
+    pos2 = lookup[j, 1]
+    u_dmd = q[i]
+    # demand check
+    if trip_dmd[r2] + u_dmd > w:
+        return -1
+    if r1 != r2:  # inter route case
+        gain = m1_cost_inter(c, r1, r2, pos1, pos2, trip)
+        if gain > 0:
+            do_m1_inter(r1, r2, pos1, pos2, trip, lookup, trip_dmd, u_dmd)
+            return gain
+    else:  # intra route case
+        gain = m1_cost_intra(c, r1, pos1, pos2, trip)
+        if gain > 0:
+            do_m1_intra(r1, pos1, pos2, trip, lookup)
+            return gain
+

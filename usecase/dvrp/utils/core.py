@@ -2,10 +2,10 @@ import numpy as np
 from numba import njit, int32, prange
 from usecase.dvrp.utils.io.manipulate import fill_zero
 from utils.numba.bisect import bisect
-from usecase.dvrp.utils.heuristics.local_search.first_descend import descend
+from usecase.dvrp.utils.heuristics.local_search.first_descend import descend, neighbourhood_gen
 from usecase.dvrp.utils.split import split, label2route
 from usecase.dvrp.utils.route.repr import decoding, get_trip_dmd, trip_lookup
-
+from usecase.dvrp.utils.heuristics.route_construction.sweep import sweep_constructor
 
 @njit
 def lox(p1, p2):
@@ -118,11 +118,15 @@ def check_spaced(fitness: np.ndarray, val: float, delta: float) -> bool:
 
 
 @njit
-def optimize(max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delta):
+def optimize(cx, cy, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delta, max_agl):
+    best_vec = np.empty(alpha)
+    avg_vec = np.empty(alpha)
+    gm = sweep_constructor(cx, cy, q, c, max_route_len, w, max_load)
     pool, ind_fit, restart = get_initial_solution(n, size, q, d, c, w, max_load, delta)
     ordered_idx = np.argsort(ind_fit)
     pool = pool[ordered_idx, :]
     ind_fit = ind_fit[ordered_idx]
+    neighbor = neighbourhood_gen(cx, cy, max_agl)
     a = 0
     b = 0
     mid = size // 2
@@ -140,7 +144,7 @@ def optimize(max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delt
             trip_dmd = get_trip_dmd(trip, q)
             f = val
             lookup = trip_lookup(trip, n)
-            mutation(trip, n, c, val, trip_dmd, q, w, lookup)
+            mutation(trip, n, c, val, trip_dmd, q, w, lookup, neighbor)
             chromosome = decoding(trip, n)
             _, fitness = split(n, chromosome, q, d, c, w, max_load)
             is_spaced = check_spaced(modified_fitness, fitness, delta)
@@ -152,6 +156,8 @@ def optimize(max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delt
 
         is_spaced = check_spaced(modified_fitness, val, delta)
         if is_spaced:
+            best_vec[a] = ind_fit[0]
+            # avg_vec[a] = np.mean(ind_fit)
             a += 1
             idx = bisect(modified_fitness, val) + 1
             if idx == k:
@@ -164,18 +170,19 @@ def optimize(max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delt
                 idx += 1
                 pool = np.concatenate((pool[:k, :], pool[(k + 1):idx, :], child.reshape((1, n + 1)), pool[idx:, :]))
                 ind_fit = np.concatenate((ind_fit[:k], ind_fit[(k + 1):idx], val * np.ones(1), ind_fit[idx:]))
-            if idx == 0:
+            if idx == 0:  # incumbent solution found
                 b = 0
-            else:
+            else:  # stall
                 b += 1
-    return pool, ind_fit
+    print(f"a: {a}, b: {b}")
+    return pool, ind_fit, best_vec, avg_vec
 
 
 @njit
-def mutation(trip, n, c, fitness, trip_dmd, q, w, lookup):
+def mutation(trip, n, c, fitness, trip_dmd, q, w, lookup, neighbor):
     prev = 0
     while True:
-        gain = descend(trip, n, c, trip_dmd, q, w, lookup)
+        gain = descend(trip, n, c, trip_dmd, q, w, lookup, neighbor)
         if gain < 0 or abs(gain - prev) < 1e-4:
             break
         else:
@@ -185,11 +192,11 @@ def mutation(trip, n, c, fitness, trip_dmd, q, w, lookup):
 
 
 @njit(parallel=True)
-def multi_start(max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delta, rho):
+def multi_start(cx, cy, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delta, rho):
     fitness = np.empty(rho)
     sol = np.empty((rho, n + 1), dtype=int32)
     for i in prange(rho):
-        pool, ind_fit = optimize(max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delta)
+        pool, ind_fit, _, _ = optimize(cx, cy, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delta)
         fitness[i] = ind_fit[0]
         sol[i] = pool[0]
     idx = np.argmin(fitness)
