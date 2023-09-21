@@ -5,11 +5,13 @@ from numba import njit, int32
 @njit
 def get_route_len(c, route):
     res = c[0, route[0]]
+    i = 0
     for i in range(len(route) - 1):
         if route[i] == 0:
             break
         else:
             res += c[route[i], route[i + 1]]
+    res += c[route[i + 1], 0]
     return res
 
 

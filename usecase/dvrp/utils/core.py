@@ -5,7 +5,7 @@ from utils.numba.bisect import bisect
 from usecase.dvrp.utils.heuristics.local_search.first_descend import descend, neighbourhood_gen
 from usecase.dvrp.utils.split import split, label2route
 from usecase.dvrp.utils.route.repr import decoding, get_trip_dmd, trip_lookup
-from usecase.dvrp.utils.heuristics.route_construction.sweep import sweep_constructor
+
 
 @njit
 def lox(p1, p2):
@@ -118,11 +118,10 @@ def check_spaced(fitness: np.ndarray, val: float, delta: float) -> bool:
 
 
 @njit
-def optimize(cx, cy, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delta, max_agl):
+def optimize(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, beta, delta, max_agl):
     best_vec = np.empty(alpha)
     avg_vec = np.empty(alpha)
-    gm = sweep_constructor(cx, cy, q, c, max_route_len, w, max_load)
-    pool, ind_fit, restart = get_initial_solution(n, size, q, d, c, w, max_load, delta)
+    pool, ind_fit, restart = get_initial_solution(n, size, q, d, c, w, max_dist, delta)
     ordered_idx = np.argsort(ind_fit)
     pool = pool[ordered_idx, :]
     ind_fit = ind_fit[ordered_idx]
@@ -136,7 +135,7 @@ def optimize(cx, cy, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, be
         child1, child2 = lox(p1[1:], p2[1:])
         child = child1 if np.random.random() < 0.5 else child2
         child = fill_zero(n, child)
-        label, val = split(n, child, q, d, c, w, max_load)
+        label, val = split(n, child, q, d, c, w, max_dist)
         trip = label2route(n, label, child, max_route_len)
         k = np.random.randint(mid, size)
         modified_fitness = np.concatenate((ind_fit[:k], ind_fit[k + 1:]))
@@ -146,7 +145,7 @@ def optimize(cx, cy, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, be
             lookup = trip_lookup(trip, n)
             mutation(trip, n, c, val, trip_dmd, q, w, lookup, neighbor)
             chromosome = decoding(trip, n)
-            _, fitness = split(n, chromosome, q, d, c, w, max_load)
+            _, fitness = split(n, chromosome, q, d, c, w, max_dist)
             is_spaced = check_spaced(modified_fitness, fitness, delta)
             if is_spaced:
                 child = chromosome
@@ -201,3 +200,19 @@ def multi_start(cx, cy, max_route_len, n, q, d, c, w, max_load, size, pm, alpha,
         sol[i] = pool[0]
     idx = np.argmin(fitness)
     return sol[idx], fitness[idx]
+
+
+@njit
+def find_best(cx, cy, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delta, max_agl, best_sol):
+    pool, ind_fit, _, _ = optimize(cx, cy, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta,
+                                   delta, max_agl)
+    count = 0
+    best = np.inf
+    while ind_fit[0] > best_sol:
+        print(count, ind_fit[0], best)
+        pool, ind_fit, _, _ = optimize(cx, cy, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta,
+                                       delta, max_agl)
+        count += 1
+        if ind_fit[0] < best:
+            best = ind_fit[0]
+    return pool, ind_fit

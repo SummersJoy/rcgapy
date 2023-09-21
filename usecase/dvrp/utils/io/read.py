@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def read_xml(filename: str):
+def read_xml(filename: str) -> tuple[np.array, np.array, np.array, float, int]:
     if filename.split(".")[-1] != "xml":
         raise NameError(f"Input file {filename} is not xml format")
     file = open(filename, "r")
