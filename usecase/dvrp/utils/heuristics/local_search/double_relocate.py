@@ -2,7 +2,7 @@ from numba import njit, int32
 import numpy as np
 
 
-@njit
+@njit(fastmath=True)
 def m2_cost_inter(c, r1, r2, pos1, pos2, trip):
     u_prev = trip[r1, pos1 - 1] if pos1 >= 1 else 0
     u = trip[r1, pos1]

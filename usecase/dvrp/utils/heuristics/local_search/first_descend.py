@@ -2,7 +2,8 @@ import numpy as np
 from numba import njit, int32
 from usecase.dvrp.utils.route.angle import get_angle, near_neighbor
 from usecase.dvrp.utils.heuristics.local_search.single_relocate import m1_cost_inter, m1_cost_intra, do_m1_inter, \
-    do_m1_intra, m1_lookup_intra_update, m1_lookup_inter_update
+    do_m1_intra
+from usecase.dvrp.utils.heuristics.local_search.double_relocate import m2_cost_inter, do_m2_inter
 from usecase.dvrp.utils.route.repr import trip_lookup
 
 
@@ -56,6 +57,12 @@ def descend(trip, n, c, trip_dmd, q, w, lookup, neighbor):
             if gain > 0:
                 do_m1_inter(r1, r2, pos1, pos2, trip, lookup, trip_dmd, u_dmd)
                 return gain
+            gain2 = m2_cost_inter(c, r1, r2, pos1, pos2, trip)
+            if gain2 > 0:
+                do_m2_inter(r1, r2, pos1, pos2, trip, lookup, trip_dmd, q)
+                # if np.sum(trip_lookup(trip, n) - lookup) != 0:
+                #     raise ValueError("Move 2 error ")
+                return gain2
         else:  # intra route case
             gain = m1_cost_intra(c, r1, pos1, pos2, trip)
             if gain > 0:

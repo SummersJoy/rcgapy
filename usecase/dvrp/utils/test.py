@@ -71,7 +71,6 @@ def test_operation_m1(c, trip, n):
     print("m1 operation test passed!")
 
 
-
 def test_operation_m2(c, trip, n, q, trip_dmd):
     """
     test 2 neighborhood search
@@ -87,7 +86,7 @@ def test_operation_m2(c, trip, n, q, trip_dmd):
                 r2 = lookup[j, 0]
                 pos2 = lookup[j, 1]
                 print(f"r1: {r1}, r2: {r2}, pos1: {pos1}, pos2: {pos2}")
-                if r1 != r2 and trip[r1, pos1 + 1]!= 0:
+                if r1 != r2 and trip[r1, pos1 + 1] != 0:
                     gain = m2_cost_inter(c, r1, r2, pos1, pos2, trip)
                     tmp = trip.copy()
                     do_m2_inter(r1, r2, pos1, pos2, tmp, lookup, trip_dmd, q)

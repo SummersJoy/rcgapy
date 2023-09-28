@@ -7,8 +7,11 @@ from usecase.dvrp.utils.split import split, label2route
 from usecase.dvrp.utils.route.repr import decoding, get_trip_dmd, trip_lookup
 
 
-@njit
-def lox(p1, p2):
+@njit(fastmath=True)
+def lox(p1: np.ndarray, p2: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """
+    TSP like crossover operator
+    """
     n = len(p1)
     pos1 = np.random.randint(0, n)
     pos2 = np.random.randint(0, n)
@@ -45,14 +48,6 @@ def fill_chromosome(p1, p2, c1, i, j, n):
                 c1[count_f] = t
                 count_f += 1
 
-
-# p1 = np.random.permutation(50) + 1
-# p2 = np.random.permutation(50) + 1
-# # i = 4
-# # j = 6
-# %timeit c1, c2, pos1, pos2 = lox(p1, p2)
-# assert len(c1) == 50
-# assert len(c2) == 50
 
 @njit
 def get_new_ind(n):
@@ -107,17 +102,24 @@ def binary_tournament_selection(population: np.ndarray) -> np.ndarray:
 
 
 @njit(fastmath=True)
-def check_spaced(fitness: np.ndarray, val: float, delta: float) -> bool:
+def check_spaced(space_hash: np.ndarray, val: float, delta: float) -> bool:
     """
-    check if new chromosome is well-spaced in the population
+    check if new chromosome is well-spaced in the population in O(1) time
     """
-    for f in fitness:
-        if abs(f - val) < delta:
-            return False
-    return True
+    idx = int32(val / delta)
+    # n = len(space_hash)
+    # if idx > n:
+    #     space_hash = np.concatenate((space_hash, np.zeros(2 * idx - n, dtype=int32)))
+    #     space_hash[idx] = 1
+    #     return True
+    if space_hash[idx]:
+        return False
+    else:
+        space_hash[idx] = 1
+        return True
 
 
-@njit
+@njit(fastmath=True)
 def optimize(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, beta, delta, max_agl):
     best_vec = np.empty(alpha)
     avg_vec = np.empty(alpha)
@@ -126,6 +128,11 @@ def optimize(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, be
     pool = pool[ordered_idx, :]
     ind_fit = ind_fit[ordered_idx]
     neighbor = neighbourhood_gen(cx, cy, max_agl)
+    space_hash = np.zeros(50000, dtype=int32)
+    for sol in pool:
+        _, fitness = split(n, sol, q, d, c, w, max_dist)
+        hash_idx = int(fitness / delta)
+        space_hash[hash_idx] = 1
     a = 0
     b = 0
     mid = size // 2
@@ -146,15 +153,17 @@ def optimize(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, be
             mutation(trip, n, c, val, trip_dmd, q, w, lookup, neighbor)
             chromosome = decoding(trip, n)
             _, fitness = split(n, chromosome, q, d, c, w, max_dist)
-            is_spaced = check_spaced(modified_fitness, fitness, delta)
+            is_spaced = check_spaced(space_hash, fitness, delta)
             if is_spaced:
                 child = chromosome
                 val = fitness
             else:
                 val = f
-
-        is_spaced = check_spaced(modified_fitness, val, delta)
+                is_spaced = check_spaced(space_hash, val, delta)
+        else:
+            is_spaced = check_spaced(space_hash, val, delta)
         if is_spaced:
+            space_hash[int(ind_fit[k] / delta)] = 0  # remove hashed value from spack_hash
             best_vec[a] = ind_fit[0]
             # avg_vec[a] = np.mean(ind_fit)
             a += 1
@@ -173,7 +182,6 @@ def optimize(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, be
                 b = 0
             else:  # stall
                 b += 1
-    print(f"a: {a}, b: {b}")
     return pool, ind_fit, best_vec, avg_vec
 
 
@@ -215,4 +223,4 @@ def find_best(cx, cy, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, b
         count += 1
         if ind_fit[0] < best:
             best = ind_fit[0]
-    return pool, ind_fit
+    return pool, ind_fit, count

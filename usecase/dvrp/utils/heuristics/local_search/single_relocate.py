@@ -2,7 +2,7 @@ import numpy as np
 from numba import njit
 
 
-@njit
+@njit(fastmath=True)
 def m1_cost_inter(c, r1, r2, pos1, pos2, trip):
     route_id1 = trip[r1]
     route_id2 = trip[r2]
@@ -23,7 +23,7 @@ def m1_cost_inter(c, r1, r2, pos1, pos2, trip):
     return gain
 
 
-@njit
+@njit(fastmath=True)
 def m1_cost_intra(c, r, pos1, pos2, trip):
     if pos2 + 1 == pos1:
         return 0
