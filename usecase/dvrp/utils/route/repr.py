@@ -60,7 +60,7 @@ def decoding(trip: np.ndarray, n) -> np.ndarray:
     return res
 
 
-@njit
+@njit(fastmath=True)
 def get_route_dmd(route: np.ndarray, q: np.ndarray) -> float:
     """
     total demand

@@ -10,7 +10,7 @@ def bisect(res, val):
     return _bisect(res, val, idx)
 
 
-@njit
+@njit(fastmath=True)
 def _bisect(res, val, idx):
     if len(idx) == 1:
         return idx[0]

@@ -113,7 +113,7 @@ def check_spaced(space_hash: np.ndarray, val: float, delta: float) -> bool:
     if space_hash[idx]:
         return False
     else:
-        space_hash[idx] = 1
+        space_hash[idx] = 1.
         return True
 
 
