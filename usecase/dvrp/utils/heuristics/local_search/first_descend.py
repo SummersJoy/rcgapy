@@ -56,15 +56,18 @@ def descend(trip, n, c, trip_dmd, q, w, lookup, neighbor):
             gain = m1_cost_inter(c, r1, r2, pos1, pos2, trip)
             if gain > 0:
                 do_m1_inter(r1, r2, pos1, pos2, trip, lookup, trip_dmd, u_dmd)
-                if np.sum(trip_lookup(trip, n) - lookup) != 0:
-                    raise ValueError("Move 1 error ")
+                # if np.sum(trip_lookup(trip, n) - lookup) != 0:
+                #     raise ValueError("Move 1 error ")
                 return gain
-            # gain2 = m2_cost_inter(c, r1, r2, pos1, pos2, trip)
-            # if gain2 > 0:
-            #     do_m2_inter(r1, r2, pos1, pos2, trip, lookup, trip_dmd, q)
-            #     # if np.sum(trip_lookup(trip, n) - lookup) != 0:
-            #     #     raise ValueError("Move 2 error ")
-            #     return gain2
+            if trip[r1, pos1 + 1]:  # u is not the last element
+                gain2 = m2_cost_inter(c, r1, r2, pos1, pos2, trip)
+                if gain2 > 0:
+                    do_m2_inter(r1, r2, pos1, pos2, trip, lookup, trip_dmd, q)
+                    # if np.sum(trip_lookup(trip, n) - lookup) != 0:
+                    #     print(r1, r2, pos1, pos2)
+                    #     print(trip)
+                    #     raise ValueError("Move 2 error ")
+                    return gain2
         else:  # intra route case
             gain = m1_cost_intra(c, r1, pos1, pos2, trip)
             if gain > 0:

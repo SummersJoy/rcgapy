@@ -10,12 +10,12 @@ from usecase.dvrp.utils.core import optimize
 pm = 0.2
 size = 30
 max_load = 10000
-alpha = 90000
-beta = 9000
+alpha = 30000
+beta = 10000
 delta = 0.5
 rho = 16  # number of restarts
 max_agl = 45.  # angle threshold
-filename = "/mnt/d/ga/ga/data/dvrp/christofides/CMT01.xml"
+filename = "/mnt/d/ga/ga/data/dvrp/christofides/CMT05.xml"
 cx, cy, q, w, depot = read_xml(filename)
 cx = reformat_depot(cx)
 cy = reformat_depot(cy)
@@ -26,7 +26,7 @@ q = fill_zero(n, q)
 d = fill_zero(n, d)
 max_route_len = get_max_route_len(q, w)
 
-pool, ind_fit, best_vec, avg_vec = optimize(cx, cy, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta,
+pool, ind_fit = optimize(cx, cy, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta,
                                             delta, max_agl)
 
 

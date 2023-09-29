@@ -2,6 +2,7 @@ import numpy as np
 from numba import njit
 from dvrp.utils.route.repr import trip_lookup
 
+
 @njit(fastmath=True)
 def m1_cost_inter(c, r1, r2, pos1, pos2, trip):
     route_id1 = trip[r1]
@@ -146,4 +147,3 @@ def do_m1(i, j, lookup, q, trip_dmd, w, c, trip):
         if gain > 0:
             do_m1_intra(r1, pos1, pos2, trip, lookup)
             return gain
-

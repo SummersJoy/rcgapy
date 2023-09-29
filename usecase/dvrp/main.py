@@ -12,12 +12,12 @@ from usecase.dvrp.utils.heuristics.route_construction.sweep import sweep_constru
 pm = 0.05
 size = 30
 max_dist = 10000
-alpha = 30000
-beta = 10000
+alpha = 90000
+beta = 30000
 delta = 0.5
 rho = 16  # number of restarts
 max_agl = 180.  # angle threshold
-filename = "/mnt/d/ga/ga/data/dvrp/christofides/CMT05.xml"
+filename = "/mnt/d/ga/ga/data/dvrp/christofides/CMT02.xml"
 
 cx, cy, q, w, depot = read_xml(filename)
 cx = reformat_depot(cx)
@@ -41,7 +41,7 @@ start = time.perf_counter()
 count_vec = []
 for _ in range(10):
     pool, ind_fit, count = find_best(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, beta, delta,
-                                     max_agl, 1350)
+                                     max_agl, 850)
     count_vec.append(count)
 print(np.mean(count_vec))
 print(time.perf_counter() - start)
