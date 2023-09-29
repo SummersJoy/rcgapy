@@ -13,15 +13,17 @@ def split(n: int, s: np.ndarray, q: np.ndarray, d: np.ndarray, c: np.ndarray, w:
     v[0] = 0
     v[1:] = np.inf
     for i in range(1, n + 1):
-        load = 0
-        cost = 0
+        load = 0.
+        cost = 0.
         j = i
         while True:
-            load += q[s[j]]
+            sj = s[j]
+            sj_prev = s[j - 1]
+            load += q[sj]
             if i == j:
-                cost = c[0, s[j]] + d[s[j]] + c[s[j], 0]
+                cost = c[0, sj] + d[sj] + c[sj, 0]
             else:
-                cost = cost - c[s[j - 1], 0] + c[s[j - 1], s[j]] + d[s[j]] + c[s[j], 0]
+                cost = cost - c[sj_prev, 0] + c[sj_prev, sj] + d[sj] + c[sj, 0]
             if load <= w and cost <= max_load:
                 if v[i - 1] + cost < v[j]:
                     v[j] = v[i - 1] + cost

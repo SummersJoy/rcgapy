@@ -14,9 +14,8 @@ class Sweep:
         self.c = c
         self.max_route_len = max_route_len
 
-    @njit
-    def __sweep_constractor(self):
-        return sweep_constructor(self.cx, self.cy, self.q, self.c, self.max_route_len)
+    def __sweep_naive(self):
+        pass
 
 
 def sweep_constructor(cx, cy, q, c, max_route_len, w, max_dist):

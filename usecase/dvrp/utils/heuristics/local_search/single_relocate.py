@@ -1,6 +1,6 @@
 import numpy as np
 from numba import njit
-
+from dvrp.utils.route.repr import trip_lookup
 
 @njit(fastmath=True)
 def m1_cost_inter(c, r1, r2, pos1, pos2, trip):
@@ -119,6 +119,10 @@ def m1_lookup_intra_update(trip: np.ndarray, r1: int, pos1: int, pos2: int, look
             cust = trip[r1, i]
             lookup[cust, 1] += 1
     else:
+        trip_bench = trip_lookup(trip, np.max(trip))
+        diff = np.sum(trip_bench - lookup)
+        if diff:
+            print(f"ABS difference {diff}")
         raise ValueError(f"Duplicated i, j: {u}")
 
 

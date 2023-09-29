@@ -8,7 +8,6 @@ from usecase.dvrp.utils.split import label2route
 from usecase.dvrp.utils.test import test_operation_m2
 from usecase.dvrp.utils.heuristics.route_construction.sweep import sweep_constructor
 
-
 # parameters
 pm = 0.05
 size = 30
@@ -18,7 +17,7 @@ beta = 10000
 delta = 0.5
 rho = 16  # number of restarts
 max_agl = 180.  # angle threshold
-filename = "/mnt/d/ga/ga/data/dvrp/christofides/CMT01.xml"
+filename = "/mnt/d/ga/ga/data/dvrp/christofides/CMT05.xml"
 
 cx, cy, q, w, depot = read_xml(filename)
 cx = reformat_depot(cx)
@@ -31,16 +30,18 @@ d = fill_zero(n, d)
 max_route_len = get_max_route_len(q, w)
 
 # main loop
-pool, ind_fit, best_vec, avg_vec = optimize(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, beta,
-                                            delta, max_agl)
+pool, ind_fit = optimize(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, beta, delta, max_agl)
 print(ind_fit[0])
+# %timeit pool, ind_fit, best_vec, avg_vec = optimize(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, beta, delta, max_agl)
 # trip = sweep_constructor(cx, cy, q, c, max_route_len, w, max_dist)
 # procedure of finding a solution within threshold
 import time
+
 start = time.perf_counter()
 count_vec = []
 for _ in range(10):
-    pool, ind_fit, count = find_best(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, beta, delta, max_agl, 530)
+    pool, ind_fit, count = find_best(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, beta, delta,
+                                     max_agl, 1350)
     count_vec.append(count)
 print(np.mean(count_vec))
 print(time.perf_counter() - start)
