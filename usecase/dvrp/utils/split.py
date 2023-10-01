@@ -10,8 +10,8 @@ def split(n: int, s: np.ndarray, q: np.ndarray, d: np.ndarray, c: np.ndarray, w:
     """
     v = np.empty(n + 1)
     p = np.empty(n + 1, dtype=int32)
-    v[0] = 0
-    v[1:] = np.inf
+    v[0] = 0.
+    v[1:] = 999999.
     for i in range(1, n + 1):
         load = 0.
         cost = 0.
@@ -53,7 +53,10 @@ def label2route(n, p, s, max_rl):
 
 
 @njit
-def get_max_route_len(q, w):
+def get_max_route_len(q: np.ndarray, w: float) -> int:
+    """
+    Compute the max number of possible customer in each trip
+    """
     n = len(q) - 1
     demand = sorted(q[1:])
     current = 0

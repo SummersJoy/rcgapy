@@ -73,6 +73,5 @@ def get_trip_dmd(trip: np.ndarray, q: np.ndarray) -> np.ndarray:
     n = len(trip)
     res = np.empty(n)
     for i in range(n):
-        route = trip[i]
-        res[i] = get_route_dmd(route, q)
+        res[i] = get_route_dmd(trip[i], q)
     return res

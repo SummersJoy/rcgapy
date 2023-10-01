@@ -13,10 +13,12 @@ def base_plot(cx, cy):
 
 
 def plot_trip(cx, cy, t, ax):
-    lst = [0]
+    lst = []
     for i in t:
-        lst.append(i)
-    lst.append(0)
+        if i:
+            lst.append(i)
+        else:
+            break
     ax.plot(cx[lst], cy[lst])
 
 

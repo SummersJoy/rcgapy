@@ -62,13 +62,18 @@ def get_new_ind(n):
 
 
 @njit
-def get_initial_solution(n, size, q, d, c, w, max_load, delta):
+def get_initial_solution(n, size, q, d, c, w, max_load, delta, heuristic_sol):
     res = np.empty((size, n + 1), dtype=int32)
+    num_heu_sol = len(heuristic_sol)
     ind_fitness = np.empty(size)
+    res[:num_heu_sol] = heuristic_sol
+    for i in range(num_heu_sol):
+        _, fitness = split(n, heuristic_sol[i], q, d, c, w, max_load)
+        ind_fitness[i] = fitness
     restart = 0
-    for i in range(size):
+    for i in range(num_heu_sol, size):
         s = get_new_ind(n)
-        label, fitness = split(n, s, q, d, c, w, max_load)
+        _, fitness = split(n, s, q, d, c, w, max_load)
         while True:
             well_spaced = True
             for j in range(i):
@@ -81,7 +86,7 @@ def get_initial_solution(n, size, q, d, c, w, max_load, delta):
             else:
                 restart += 1
                 s = get_new_ind(n)
-                label, fitness = split(n, s, q, d, c, w, max_load)
+                _, fitness = split(n, s, q, d, c, w, max_load)
         res[i] = s
 
     return res, ind_fitness, restart
@@ -89,19 +94,22 @@ def get_initial_solution(n, size, q, d, c, w, max_load, delta):
 
 # res = get_initial_solution(50, 100)
 @njit
-def binary_tournament_selection(population: np.ndarray) -> np.ndarray:
+def binary_tournament_selection(population: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """
     Tournament selection on a sorted population
     """
     n = len(population)
     id1 = np.random.randint(0, n)
     id2 = np.random.randint(0, n)
-    while id1 == id2:
-        id2 = np.random.randint(0, n)
-    if id1 < id2:
-        return population[id1]
-    else:
-        return population[id2]
+    father = id1 if id1 < id2 else id2
+    id3 = np.random.randint(0, n)
+    id4 = np.random.randint(0, n)
+    mother = id3 if id3 < id4 else id4
+    while father == mother:
+        id3 = np.random.randint(0, n)
+        id4 = np.random.randint(0, n)
+        mother = id3 if id3 < id4 else id4
+    return population[father], population[mother]
 
 
 @njit(fastmath=True)
@@ -118,8 +126,9 @@ def check_spaced(space_hash: np.ndarray, val: float, delta: float) -> bool:
 
 
 @njit(fastmath=True)
-def optimize(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, beta, delta, max_agl):
-    pool, ind_fit, restart = get_initial_solution(n, size, q, d, c, w, max_dist, delta)
+def optimize(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, beta, delta, max_agl, h_sol):
+    print("Compiled")
+    pool, ind_fit, restart = get_initial_solution(n, size, q, d, c, w, max_dist, delta, h_sol)
     ordered_idx = np.argsort(ind_fit)
     pool = pool[ordered_idx, :]
     ind_fit = ind_fit[ordered_idx]
@@ -128,14 +137,13 @@ def optimize(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, be
     for sol in pool:
         _, fitness = split(n, sol, q, d, c, w, max_dist)
         hash_idx = int(fitness / delta)
-        space_hash[hash_idx] = 1
+        space_hash[hash_idx] = 1.
     a = 0
     b = 0
     mid = size // 2
     while a != alpha and b != beta:
         # todo: duplicated p1 and p2
-        p1 = binary_tournament_selection(pool)  # 557 ns ± 10.4 ns
-        p2 = binary_tournament_selection(pool)
+        p1, p2 = binary_tournament_selection(pool)  # 910 ns ± 12.7 ns
         child1, child2 = lox(p1[1:], p2[1:])  # 2.82 µs ± 12.9 ns
         child = child1 if np.random.random() < 0.5 else child2  # 266 ns ± 8.91 ns
         child = fill_zero(n, child)
@@ -160,14 +168,15 @@ def optimize(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, be
         else:
             is_spaced = check_spaced(space_hash, val, delta)
         if is_spaced:
-            space_hash[int(ind_fit[k] / delta)] = 0  # remove hashed value from spack_hash
+            space_hash[int(ind_fit[k] / delta)] = 0.  # remove hashed value from spack_hash
             a += 1
             idx = bisect(modified_fitness, val) + 1  # 432 ns ± 4.61 ns
             if idx == k:
                 pool[k] = child
                 ind_fit[k] = val
             elif idx < k:
-                pool = np.concatenate((pool[:idx, :], child.reshape((1, n + 1)), pool[idx:k, :], pool[(k + 1):, :]))  # 2.75 µs ± 22.1 ns
+                pool = np.concatenate(
+                    (pool[:idx, :], child.reshape((1, n + 1)), pool[idx:k, :], pool[(k + 1):, :]))  # 2.75 µs ± 22.1 ns
                 # pool_cpy = pool.copy()
                 # pool_cpy[idx + 1: k + 1] = pool_cpy[idx:k]
                 # pool_cpy[idx] = child
@@ -200,11 +209,11 @@ def mutation(trip, n, c, fitness, trip_dmd, q, w, lookup, neighbor):
 
 
 @njit(parallel=True)
-def multi_start(cx, cy, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delta, rho):
+def multi_start(cx, cy, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delta, rho, max_agl):
     fitness = np.empty(rho)
     sol = np.empty((rho, n + 1), dtype=int32)
     for i in prange(rho):
-        pool, ind_fit, _, _ = optimize(cx, cy, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delta)
+        pool, ind_fit = optimize(cx, cy, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delta, max_agl)
         fitness[i] = ind_fit[0]
         sol[i] = pool[0]
     idx = np.argmin(fitness)
