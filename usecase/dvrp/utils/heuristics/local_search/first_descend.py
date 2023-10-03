@@ -4,8 +4,9 @@ from usecase.dvrp.utils.route.angle import get_angle, near_neighbor
 from usecase.dvrp.utils.heuristics.local_search.single_relocate import m1_cost_inter, m1_cost_intra, do_m1_inter, \
     do_m1_intra
 from usecase.dvrp.utils.heuristics.local_search.double_relocate import m2_cost_inter, do_m2_inter
+from usecase.dvrp.utils.heuristics.local_search.double_reverse_relocate import m3_cost_inter, do_m3_inter
 from usecase.dvrp.utils.heuristics.local_search.single_inter_swap import m4_cost_inter, do_m4_inter
-from usecase.dvrp.utils.route.repr import trip_lookup
+from usecase.dvrp.utils.route.repr import trip_lookup, trip_lookup_precedence
 
 
 @njit
@@ -27,26 +28,29 @@ def neighbourhood_gen(cx, cy, max_agl):
     return res[:count]
 
 
-@njit
-def descend(trip, n, c, trip_dmd, q, w, lookup, neighbor):
+@njit(fastmath=True)
+def descend(n, c, trip_dmd, q, w, lookup, neighbor, trip_num, lookup_prev, lookup_next):
     # lookup = trip_lookup(trip, n)
     gain = -1
 
-    for i in range(len(trip)):
-        if trip[i, 0] == 0:
+    # todo: check the validity when moving elements into empty trip
+    for i in range(len(trip_num)):
+        if trip_num[i] == 0:
             for j in range(1, n + 1):
                 r1 = lookup[j, 0]
                 pos1 = lookup[j, 1]
                 r2 = i
                 pos2 = -1
-                u_prev = trip[r1, pos1 - 1] if pos1 >= 1 else 0
                 u = j
-                x = trip[r1, pos1 + 1]
+                u_prev = lookup_prev[u]
+                x = lookup_next[u]
                 v = 0
                 y = 0
+                u_dmd = q[u]
                 gain = m1_cost_inter(c, u_prev, u, x, v, y)
                 if gain > 0:
-                    do_m1_inter(r1, r2, pos1, pos2, trip, lookup, trip_dmd, q[j])
+                    do_m1_inter(r1, r2, pos2, lookup, trip_dmd, u_dmd, trip_num, lookup_prev, lookup_next, u_prev, u, x,
+                                v, y)
                     return gain
             break
 
@@ -55,13 +59,13 @@ def descend(trip, n, c, trip_dmd, q, w, lookup, neighbor):
         pos1 = lookup[i, 1]
         r2 = lookup[j, 0]
         pos2 = lookup[j, 1]
-        u_prev = trip[r1, pos1 - 1] if pos1 >= 1 else 0
         u = i
-        x = trip[r1, pos1 + 1]
-        x_post = trip[r1, pos1 + 2]
-        v_prev = trip[r2, pos2 - 1] if pos2 >= 1 else 0
+        u_prev = lookup_prev[u]
+        x = lookup_next[u]
+        x_post = lookup_next[x]
         v = j
-        y = trip[r2, pos2 + 1]
+        v_prev = lookup_prev[v]
+        y = lookup_next[v]
         u_dmd = q[u]
         x_dmd = q[x]
         v_dmd = q[v]
@@ -69,25 +73,36 @@ def descend(trip, n, c, trip_dmd, q, w, lookup, neighbor):
 
         if r1 != r2:  # inter route case
             if trip_dmd[r2] + u_dmd <= w:  # demand check for m1
-                gain = m1_cost_inter(c, u_prev, u, x, v, y)
+                gain = m1_cost_inter(c, u_prev, u, x, v, y)  # 366 ns ± 8.05 ns
                 if gain > 0:
-                    do_m1_inter(r1, r2, pos1, pos2, trip, lookup, trip_dmd, u_dmd)
+                    do_m1_inter(r1, r2, pos2, lookup, trip_dmd, u_dmd, trip_num, lookup_prev, lookup_next, u_prev, u, x,
+                                v, y)  # 773 ns ± 1.23 ns
                     return gain
-            if trip[r1, pos1 + 1] and trip_dmd[r2] + u_dmd + x_dmd <= w:  # u is not the last element
-                gain2 = m2_cost_inter(c, u_prev, u, x, x_post, v, y)
+            if x and trip_dmd[r2] + u_dmd + x_dmd <= w:  # u is not the last element
+                gain2 = m2_cost_inter(c, u_prev, u, x, x_post, v, y)  # 462 ns ± 5.04 ns
                 if gain2 > 0:
-                    do_m2_inter(r1, r2, pos1, pos2, trip, lookup, trip_dmd, q)
+                    do_m2_inter(r1, r2, pos2, lookup, trip_dmd, u_dmd, x_dmd, trip_num, lookup_prev, lookup_next,
+                                u_prev, u, x, x_post, v, y)
                     return gain2
+                gain3 = m3_cost_inter(c, u_prev, u, x, x_post, v, y)
+                if gain3 > 0:
+                    do_m3_inter(r1, r2, pos2, lookup, trip_dmd, u_dmd, x_dmd, trip_num, lookup_prev, lookup_next,
+                                u_prev, u, x, x_post, v, y)
+                    return gain3
+
             if trip_dmd[r1] - u_dmd + v_dmd <= w and trip_dmd[r2] - v_dmd + u_dmd <= w:
                 gain4 = m4_cost_inter(c, u_prev, u, x, v_prev, v, y)
                 if gain4 > 0:
-                    do_m4_inter(r1, r2, pos1, pos2, u, v, trip, lookup, trip_dmd, u_dmd, v_dmd)
+                    do_m4_inter(r1, r2, pos1, pos2, u_prev, u, x, v_prev, v, y, lookup, lookup_prev, lookup_next,
+                                trip_dmd, u_dmd, v_dmd)
                     return gain4
         else:  # intra route case
-            gain = m1_cost_intra(c, r1, pos1, pos2, trip)
-            if gain > 0:
-                do_m1_intra(r1, pos1, pos2, trip, lookup)
-                return gain
+            if u != y:
+                gain = m1_cost_intra(c, u_prev, u, x, v, y)
+                if gain > 0:
+                    do_m1_intra(pos1, pos2, u_prev, u, x, v, y, lookup, lookup_next, lookup_prev)
+                    return gain
+            # pass
     return gain
 # for testings
 # if np.sum(trip_lookup(trip, n) - lookup) != 0:

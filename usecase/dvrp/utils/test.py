@@ -4,7 +4,8 @@ from numba import njit
 from usecase.dvrp.utils.heuristics.local_search.single_relocate import m1_cost_inter, m1_cost_intra, do_m1_inter, \
     do_m1_intra
 from usecase.dvrp.utils.heuristics.local_search.double_relocate import m2_cost_inter, do_m2_inter
-from usecase.dvrp.utils.route.repr import trip_lookup, get_trip_len
+from usecase.dvrp.utils.route.repr import trip_lookup, get_trip_len, trip_lookup_precedence, get_trip_num, \
+    get_trip_dmd, lookup2trip
 from utils.numba.random import bisect as nb_bisect
 from usecase.dvrp.utils.heuristics.local_search.single_relocate import m1_lookup_inter_update, m1_lookup_intra_update
 
@@ -36,12 +37,15 @@ def trip_test(trips, num):
 
 
 @njit
-def test_operation_m1(c, trip, n):
+def test_operation_m1(c, trip, n, q):
     """
     test 2 neighborhood search
     for empty route, client v is expressed as pos2=-1
     """
+    trip_num = get_trip_num(trip)
+    trip_dmd = get_trip_dmd(trip, q, trip_num)
     lookup = trip_lookup(trip, n)
+    lookup_prev, lookup_next = trip_lookup_precedence(trip, trip_num, n)
     fitness = get_trip_len(c, trip)
     for i in range(1, n + 1):
         for j in range(1, n + 1):
@@ -50,24 +54,65 @@ def test_operation_m1(c, trip, n):
                 pos1 = lookup[i, 1]
                 r2 = lookup[j, 0]
                 pos2 = lookup[j, 1]
+                u = i
+                u_prev = lookup_prev[u]
+                x = lookup_next[u]
+                x_post = lookup_next[x]
+                v = j
+                v_prev = lookup_prev[v]
+                y = lookup_next[v]
+                u_dmd = q[u]
+                x_dmd = q[x]
+                v_dmd = q[v]
+                y_dmd = q[y]
                 if r1 != r2:
-                    gain = m1_cost_inter(c, r1, r2, pos1, pos2, trip)
-                    tmp = trip.copy()
-                    do_m1_inter(r1, r2, pos1, pos2, tmp)
+                    lookup_cpy = lookup.copy()
+                    lookup_prev_cpy = lookup_prev.copy()
+                    lookup_next_cpy = lookup_next.copy()
+                    gain = m1_cost_inter(c, u_prev, u, x, v, y)
+                    do_m1_inter(r1, r2, pos2, lookup_cpy, trip_dmd, u_dmd, trip_num, lookup_prev_cpy, lookup_next_cpy,
+                                u_prev, u, x, v, y)
+                    tmp = lookup2trip(lookup_cpy, n)
+                    trip_num_test = get_trip_num(tmp)
+                    lookup_prev_test, lookup_next_test = trip_lookup_precedence(tmp, trip_num_test, n)
+                    # check if lookup is updated correctly
                     if abs(fitness - get_trip_len(c, tmp) - gain) < 1e-4:
-                        pass
+                        print("lookup table -> trip and cost check passed!")
                     else:
                         print(f"m1 test inter route failed at nodes {i}, {j}, Cost difference: "
                               f"{fitness - get_trip_len(c, tmp) - gain}")
-                else:
-                    gain = m1_cost_intra(c, r1, pos1, pos2, trip)
-                    tmp = trip.copy()
-                    do_m1_intra(r1, pos1, pos2, tmp)
-                    if abs(fitness - get_trip_len(c, tmp) - gain) < 1e-4:
-                        pass
+                        raise ValueError("m1 test failed")
+                    if np.allclose(lookup_prev_test[1:], lookup_prev_cpy[1:]):
+                        print("lookup_prev update test passed")
                     else:
-                        print(f"m1 test intra route failed at nodes {i}, {j},{pos1},{pos2}, Cost difference: "
-                              f"{fitness - get_trip_len(c, tmp) - gain}")
+                        raise ValueError("m1 test failed at lookup_prev test")
+                    if np.allclose(lookup_next_test[1:], lookup_next_cpy[1:]):
+                        print("lookup_next update test passed")
+                    else:
+                        raise ValueError("m1 test failed at lookup_prev test")
+                else:
+                    if pos2 + 1 != pos1:
+                        lookup_cpy = lookup.copy()
+                        lookup_prev_cpy = lookup_prev.copy()
+                        lookup_next_cpy = lookup_next.copy()
+                        gain = m1_cost_intra(c, u_prev, u, x, v, y)
+                        do_m1_intra(pos1, pos2, u_prev, u, x, v, y, lookup_cpy, lookup_next_cpy, lookup_prev_cpy)
+                        tmp = lookup2trip(lookup_cpy, n)
+                        trip_num_test = get_trip_num(tmp)
+                        lookup_prev_test, lookup_next_test = trip_lookup_precedence(tmp, trip_num_test, n)
+                        if abs(fitness - get_trip_len(c, tmp) - gain) < 1e-4:
+                            pass
+                        else:
+                            print(f"m1 test intra route failed at nodes {i}, {j},{pos1},{pos2}, Cost difference: "
+                                  f"{fitness - get_trip_len(c, tmp) - gain}")
+                        if np.allclose(lookup_prev_test[1:], lookup_prev_cpy[1:]):
+                            print("lookup_prev update test passed")
+                        else:
+                            raise ValueError("m1 test failed at lookup_prev test")
+                        if np.allclose(lookup_next_test[1:], lookup_next_cpy[1:]):
+                            print("lookup_next update test passed")
+                        else:
+                            raise ValueError("m1 test failed at lookup_prev test")
     print("m1 operation test passed!")
 
 
@@ -122,7 +167,7 @@ def test_lookup(trip, n):
                 r2 = lookup[j, 0]
                 pos2 = lookup[j, 1]
                 if r1 != r2:
-                    m1_lookup_inter_update(trip, r1, r2, pos1, pos2, lookup)
+                    m1_lookup_inter_update(r2, pos2, u, v, lookup, lookup_next)
                     do_m1_inter(r1, r2, pos1, pos2, trip)
                     lookup1 = trip_lookup(trip, n)
                     if not np.allclose(lookup1, lookup):

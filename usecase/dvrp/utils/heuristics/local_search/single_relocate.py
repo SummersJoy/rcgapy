@@ -19,105 +19,80 @@ def m1_cost_inter(c, u_prev, u, x, v, y):
 
 
 @njit(fastmath=True)
-def m1_cost_intra(c, r, pos1, pos2, trip):
-    if pos2 + 1 == pos1:
+def m1_cost_intra(c, u_prev, u, x, v, y):
+    if u == y:
         return 0
-    route = trip[r]
-    u_prev = route[pos1 - 1] if pos1 >= 1 else 0
-    u = route[pos1]
-    u_post = route[pos1 + 1]
-    u_break1 = c[u_prev, u]
-    u_break2 = c[u, u_post]
-    u_repair = c[u_prev, u_post]
-    u_gain = u_break1 + u_break2 - u_repair
-    v = route[pos2]
-    v_post = route[pos2 + 1]
-    v_break = c[v, v_post]
-    v_repair1 = c[v, u]
-    v_repair2 = c[u, v_post]
-    v_gain = v_break - v_repair1 - v_repair2
-    gain = u_gain + v_gain
-    return gain
+    return m1_cost_inter(c, u_prev, u, x, v, y)
 
 
 @njit
-def do_m1_inter(r1, r2, pos1, pos2, trip, lookup, trip_dmd, u_dmd):
+def do_m1_inter(r1, r2, pos2, lookup, trip_dmd, u_dmd, trip_num, lookup_prev, lookup_next, u_prev, u, x, v, y):
+    """
+    perform m1 movements
+    1. update lookup table
+    2. update lookup_prev and lookup_next
+    3. update trip total demand
+    4. update number of customers in changed routes
+    """
     # update lookup table
-    m1_lookup_inter_update(trip, r1, r2, pos1, pos2, lookup)
-    # update trip routes
-    route_id1 = trip[r1]
-    route_id2 = trip[r2]
-    u = route_id1[pos1]
-    trip[r1] = np.concatenate((route_id1[:pos1], route_id1[pos1 + 1:], np.zeros(1)))
-    trip[r2] = np.concatenate((route_id2[:pos2 + 1], u * np.ones(1), route_id2[(pos2 + 1):-1]))
+    m1_lookup_inter_update(r2, pos2, u, v, lookup, lookup_next)
+
+    # update lookup_prev and lookup_next
+    m1_lookup_precedence_update(lookup_prev, lookup_next, u_prev, u, x, v, y)
     # update route demand
     trip_dmd[r1] -= u_dmd
     trip_dmd[r2] += u_dmd
+    # update number of customers in each route
+    trip_num[r1] -= 1
+    trip_num[r2] += 1
 
 
 @njit
-def do_m1_intra(r, pos1, pos2, trip, lookup):
-    m1_lookup_intra_update(trip, r, pos1, pos2, lookup)
-    route = trip[r]
-    if pos1 < pos2:
-        trip[r] = np.concatenate(
-            (route[:pos1], route[(pos1 + 1):(pos2 + 1)], route[pos1] * np.ones(1), route[pos2 + 1:]))
-    else:
-        trip[r] = np.concatenate(
-            (route[:pos2 + 1], route[pos1] * np.ones(1), route[(pos2 + 1):pos1], route[pos1 + 1:]))
+def do_m1_intra(pos1, pos2, u_prev, u, x, v, y, lookup, lookup_next, lookup_prev):
+    # update lookup table
+    m1_lookup_intra_update(pos1, pos2, u, v, y, lookup, lookup_next)
+    # update lookup_prev, lookup_next
+    m1_lookup_precedence_update(lookup_prev, lookup_next, u_prev, u, x, v, y)
 
 
 @njit
-def m1_lookup_inter_update(trip: np.ndarray, r1: int, r2: int, pos1: int, pos2: int, lookup: np.ndarray):
+def m1_lookup_inter_update(r2: int, pos2: int, u: int, v: int, lookup: np.ndarray, lookup_next: np.ndarray) -> None:
     """
     update trip lookup table after inter route relocation
     """
-    u = trip[r1, pos1]
-    n_rol, n_col = trip.shape
-    for i in range(pos1 + 1, n_col):
-        cust = trip[r1, i]
-        if cust == 0:
-            break
+    # update route1 T(u)
+    cust = lookup_next[u]
+    while cust:
         lookup[cust, 1] -= 1
-    # for cust in trip[r1, (pos1 + 1):]:
-    #     if cust == 0:
-    #         break
-    #     lookup[cust, 1] -= 1
-    # for cust in trip[r2, (pos2 + 1):]:
-    for i in range(pos2 + 1, n_col):
-        cust = trip[r2, i]
-        if cust == 0:
-            break
+        cust = lookup_next[cust]
+    # update route 2 T(v)
+    cust = lookup_next[v] if v else 0  # if v is 0 -> empty route, then do not update T(v)
+    while cust:
         lookup[cust, 1] += 1
+        cust = lookup_next[cust]
+    # update u
     lookup[u, 0] = r2
     lookup[u, 1] = pos2 + 1
 
 
 @njit
-def m1_lookup_intra_update(trip: np.ndarray, r1: int, pos1: int, pos2: int, lookup: np.ndarray):
+def m1_lookup_intra_update(pos1: int, pos2: int, u: int, v: int, y: int, lookup: np.ndarray, lookup_next: np.ndarray):
     """
     update trip lookup table after intra route relocation
     """
-    u = trip[r1, pos1]
     if pos1 < pos2:
-        # for cust in trip[r1, (pos1 + 1):(pos2+1)]:
-        for i in range(pos1 + 1, pos2 + 1):
-            cust = trip[r1, i]
-            if cust == 0:
-                break
+        cust = lookup_next[u]
+        while cust != y:
             lookup[cust, 1] -= 1
+            cust = lookup_next[cust]
         lookup[u, 1] = pos2
     elif pos1 > pos2:
-        lookup[u, 1] = pos2 + 1
-        # for cust in trip[r1, (pos2 + 1):pos1]:
-        for i in range(pos2 + 1, pos1):
-            cust = trip[r1, i]
+        cust = y
+        while cust != u:
             lookup[cust, 1] += 1
+            cust = lookup_next[cust]
+        lookup[u, 1] = pos2 + 1
     else:
-        trip_bench = trip_lookup(trip, np.max(trip))
-        diff = np.sum(trip_bench - lookup)
-        if diff:
-            print(f"ABS difference {diff}")
         raise ValueError(f"Duplicated i, j: {u}")
 
 
@@ -141,3 +116,18 @@ def do_m1(i, j, lookup, q, trip_dmd, w, c, trip):
         if gain > 0:
             do_m1_intra(r1, pos1, pos2, trip, lookup)
             return gain
+
+
+@njit
+def m1_lookup_precedence_update(lookup_prev, lookup_next, u_prev, u, x, v, y):
+    """
+    update lookup_prev and lookup_next after performing m1
+    """
+    # remove u
+    lookup_next[u_prev] = x
+    lookup_prev[x] = u_prev
+    # insert u after v
+    lookup_next[v] = u
+    lookup_prev[u] = v
+    lookup_next[u] = y
+    lookup_prev[y] = u

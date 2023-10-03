@@ -2,9 +2,8 @@ import numpy as np
 from usecase.dvrp.utils.io.read import read_xml
 from usecase.dvrp.utils.io.manipulate import get_dist_mat, reformat_depot, fill_zero
 from usecase.dvrp.utils.core import optimize, multi_start, find_best, get_new_ind
-from usecase.dvrp.utils.split import split, get_max_route_len
+from usecase.dvrp.utils.split import split, get_max_route_len, label2route
 from usecase.dvrp.utils.visualize.route import plot_sol
-from usecase.dvrp.utils.split import label2route
 from usecase.dvrp.utils.test import test_operation_m2
 from usecase.dvrp.utils.heuristics.route_construction.sweep import sweep_constructor
 
@@ -16,8 +15,8 @@ alpha = 30000
 beta = 10000
 delta = 0.5
 rho = 16  # number of restarts
-max_agl = 180.  # angle threshold
-filename = "/mnt/d/ga/ga/data/dvrp/christofides/CMT01.xml"
+max_agl = 22.5  # angle threshold
+filename = "/mnt/d/ga/ga/data/dvrp/christofides/CMT05.xml"
 
 cx, cy, q, w, depot = read_xml(filename)
 cx = reformat_depot(cx)
@@ -34,7 +33,9 @@ heuristic_sol = np.empty((3, n + 1), dtype=int)
 for i in range(3):
     ind = get_new_ind(n)
     heuristic_sol[i] = ind
-pool, ind_fit = optimize(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, beta, delta, max_agl, heuristic_sol)
+h_sol = heuristic_sol
+pool, ind_fit = optimize(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, beta, delta, max_agl,
+                         heuristic_sol)
 print(ind_fit[0])
 best_val = np.inf
 best_sol = None
@@ -59,10 +60,9 @@ for i in range(1000):
     if ind_fit[0] < best_val:
         best_val = ind_fit[0]
         best_sol = pool[0]
-        print(f"Current best: {np.round(best_val,3)}")
+        print(f"Current best: {np.round(best_val, 3)}")
     else:
         print(f"Not improved in iteration {i}, current best:{np.round(best_val, 3)}")
-
 
 # %timeit pool, ind_fit, best_vec, avg_vec = optimize(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, beta, delta, max_agl)
 # trip = sweep_constructor(cx, cy, q, c, max_route_len, w, max_dist)
@@ -100,12 +100,15 @@ plot_sol(cx, cy, trip)
 best_val = np.inf
 best_sol = None
 while True:
-    sol, fit = multi_start(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, beta, delta, rho, max_agl)
+    sol, fit = multi_start(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, beta, delta, rho, max_agl,
+                           heuristic_sol)
     if fit < best_val:
         best_val = fit
         best_sol = sol
-        print(f"Current best: {np.round(fit,3)}")
-    if best_val <= 1350.:
+        print(f"Incumbent solution: {np.round(best_val, 3)}")
+    else:
+        print(f"Current best: {np.round(best_val, 3)}")
+    if best_val <= 833.5:
         break
 # label, fitness = split(n, sol, q, d, c, w, max_load)
 # trip = label2route(n, label, s, max_route_len)

@@ -15,39 +15,45 @@ def m2_cost_inter(c, u_prev, u, x, x_post, v, y):
 
 
 @njit
-def do_m2_inter(r1, r2, pos1, pos2, trip, lookup, trip_dmd, q):
-    m2_lookup_inter_update(trip, r1, r2, pos1, pos2, lookup)
-    route_id1 = trip[r1]
-    route_id2 = trip[r2]
-    u = route_id1[pos1]
-    x = route_id1[pos1 + 1]
-    trip[r1] = np.concatenate((route_id1[:pos1], route_id1[pos1 + 2:], np.zeros(2)))
-    trip[r2] = np.concatenate((route_id2[:pos2 + 1], u * np.ones(1), x * np.ones(1), route_id2[(pos2 + 1):-2]))
+def do_m2_inter(r1, r2, pos2, lookup, trip_dmd, u_dmd, x_dmd, trip_num, lookup_prev, lookup_next, u_prev, u, x, x_post,
+                v, y) -> None:
+    m2_lookup_inter_update(r2, pos2, u, x, v, lookup, lookup_next)
+    # update lookup precedence for T(u)
+    lookup_next[u_prev] = x_post
+    lookup_prev[x_post] = u_prev
+
+    # update lookup precedence for T(v)
+    lookup_next[v] = u
+    lookup_prev[u] = v
+    lookup_next[x] = y
+    lookup_prev[y] = x
+
     # update route demand
-    dmd = q[u] + q[x]
+    dmd = u_dmd + x_dmd
     trip_dmd[r1] -= dmd
     trip_dmd[r2] += dmd
 
+    # update trip_num
+    trip_num[r1] -= 2
+    trip_num[r2] += 2
+
 
 @njit
-def m2_lookup_inter_update(trip: np.ndarray, r1: int, r2: int, pos1: int, pos2: int, lookup: np.ndarray):
+def m2_lookup_inter_update(r2: int, pos2: int, u: int, x: int, v: int, lookup: np.ndarray, lookup_next: np.ndarray):
     """
     update move 2 trip lookup table after inter route relocation
     """
-    u = trip[r1, pos1]
-    x = trip[r1, pos1 + 1]
-    n_rol, n_col = trip.shape
-    for i in range(pos1 + 2, n_col):
-        cust = trip[r1, i]
-        if cust == 0:
-            break
+    # update route1 T(u)
+    cust = lookup_next[x]
+    while cust:
         lookup[cust, 1] -= 2
-
-    for i in range(pos2 + 1, n_col):
-        cust = trip[r2, i]
-        if cust == 0:
-            break
+        cust = lookup_next[cust]
+    # update route 2 T(v)
+    cust = lookup_next[v]
+    while cust:
         lookup[cust, 1] += 2
+        cust = lookup_next[cust]
+    # update u
     lookup[u, 0] = r2
     lookup[u, 1] = pos2 + 1
     lookup[x, 0] = r2

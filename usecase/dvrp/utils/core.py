@@ -4,7 +4,8 @@ from usecase.dvrp.utils.io.manipulate import fill_zero
 from utils.numba.bisect import bisect
 from usecase.dvrp.utils.heuristics.local_search.first_descend import descend, neighbourhood_gen
 from usecase.dvrp.utils.split import split, label2route
-from usecase.dvrp.utils.route.repr import decoding, get_trip_dmd, trip_lookup
+from usecase.dvrp.utils.route.repr import decoding, get_trip_dmd, trip_lookup, get_trip_num, trip_lookup_precedence, \
+    lookup2trip
 
 
 @njit
@@ -29,7 +30,10 @@ def lox(p1: np.ndarray, p2: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 
 @njit
-def fill_chromosome(p1, p2, c1, i, j, n):
+def fill_chromosome(p1: np.ndarray, p2: np.ndarray, c1: np.ndarray, i: int, j: int, n: int) -> None:
+    """
+    iteratively fill elements in each chromosome to achieve LOX
+    """
     count = 0
     # p1_present = p1[i:j]
     p1_present = np.zeros(len(p1) + 1, dtype=int32)
@@ -127,7 +131,7 @@ def check_spaced(space_hash: np.ndarray, val: float, delta: float) -> bool:
 
 @njit(fastmath=True)
 def optimize(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, beta, delta, max_agl, h_sol):
-    print("Compiled")
+    print("compiled")
     pool, ind_fit, restart = get_initial_solution(n, size, q, d, c, w, max_dist, delta, h_sol)
     ordered_idx = np.argsort(ind_fit)
     pool = pool[ordered_idx, :]
@@ -152,10 +156,14 @@ def optimize(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, be
         k = np.random.randint(mid, size)
         modified_fitness = np.concatenate((ind_fit[:k], ind_fit[k + 1:]))  # 1.15 µs ± 13.4 ns
         if np.random.random() < pm:
-            trip_dmd = get_trip_dmd(trip, q)  # 2.04 µs ± 39.4 ns
+            trip_num = get_trip_num(trip)  # 800 ns ± 6.77 ns
+            trip_dmd = get_trip_dmd(trip, q, trip_num)  # 867 ns ± 3.24 ns
             f = val
             lookup = trip_lookup(trip, n)  # 800 ns ± 5.58 ns
-            mutation(trip, n, c, val, trip_dmd, q, w, lookup, neighbor)
+            lookup_prev, lookup_next = trip_lookup_precedence(trip, trip_num, n)  # 1.17 µs ± 30.2 ns
+            mutation(n, c, val, trip_dmd, q, w, lookup, neighbor, trip_num, lookup_prev, lookup_next)
+            # retriv trip
+            trip = lookup2trip(lookup, n, max_route_len, len(trip))  # 2.54 µs ± 18.9 ns
             chromosome = decoding(trip, n)  # 732 ns ± 11.6 ns
             _, fitness = split(n, chromosome, q, d, c, w, max_dist)
             is_spaced = check_spaced(space_hash, fitness, delta)  # 187 ns ± 1.46 ns
@@ -196,10 +204,10 @@ def optimize(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, be
 
 
 @njit
-def mutation(trip, n, c, fitness, trip_dmd, q, w, lookup, neighbor):
+def mutation(n, c, fitness, trip_dmd, q, w, lookup, neighbor, trip_num, lookup_prev, lookup_next):
     prev = 0
     while True:
-        gain = descend(trip, n, c, trip_dmd, q, w, lookup, neighbor)
+        gain = descend(n, c, trip_dmd, q, w, lookup, neighbor, trip_num, lookup_prev, lookup_next)
         if gain < 0 or abs(gain - prev) < 1e-4:
             break
         else:
@@ -209,11 +217,12 @@ def mutation(trip, n, c, fitness, trip_dmd, q, w, lookup, neighbor):
 
 
 @njit(parallel=True)
-def multi_start(cx, cy, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delta, rho, max_agl):
+def multi_start(cx, cy, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delta, rho, max_agl, h_sol):
     fitness = np.empty(rho)
     sol = np.empty((rho, n + 1), dtype=int32)
     for i in prange(rho):
-        pool, ind_fit = optimize(cx, cy, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delta, max_agl)
+        pool, ind_fit = optimize(cx, cy, max_route_len, n, q, d, c, w, max_load, size, pm, alpha, beta, delta, max_agl,
+                                 h_sol)
         fitness[i] = ind_fit[0]
         sol[i] = pool[0]
     idx = np.argmin(fitness)

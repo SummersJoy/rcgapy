@@ -17,15 +17,25 @@ def m4_cost_inter(c, u_prev, u, x, v_prev, v, y):
 
 
 @njit
-def do_m4_inter(r1, r2, pos1, pos2, u, v, trip, lookup, trip_dmd, u_dmd, v_dmd):
+def do_m4_inter(r1, r2, pos1, pos2, u_prev, u, x, v_prev, v, y, lookup, lookup_prev, lookup_next, trip_dmd, u_dmd,
+                v_dmd):
     # update lookup table
     lookup[u, 0] = r2
     lookup[u, 1] = pos2
     lookup[v, 0] = r1
     lookup[v, 1] = pos1
-    # update trip routes
-    trip[r1, pos1] = v
-    trip[r2, pos2] = u
+    # update lookup precedence
+    lookup_next[u_prev] = v
+    lookup_prev[v] = u_prev
+    lookup_next[v] = x
+    lookup_prev[x] = v
+
+    lookup_next[v_prev] = u
+    lookup_prev[u] = v_prev
+    lookup_next[u] = y
+    lookup_prev[y] = u
     # update route demand
     trip_dmd[r1] += v_dmd - u_dmd
     trip_dmd[r2] += u_dmd - v_dmd
+
+    # trip_num remains the same
