@@ -8,16 +8,16 @@ from usecase.dvrp.utils.test import test_operation_m2
 from usecase.dvrp.utils.heuristics.route_construction.sweep import sweep_constructor
 
 # parameters
-pm = 0.05
+pm = 0.1
 size = 30
 max_dist = 10000
 alpha = 30000
 beta = 10000
 delta = 0.5
 rho = 16  # number of restarts
-max_agl = 22.5  # angle threshold
+max_agl = 45.  # angle threshold
 filename = "/mnt/d/ga/ga/data/dvrp/christofides/CMT05.xml"
-
+filename = "/mnt/d/ga/ga/data/dvrp/golden/Golden_02.xml"
 cx, cy, q, w, depot = read_xml(filename)
 cx = reformat_depot(cx)
 cy = reformat_depot(cy)
@@ -102,13 +102,14 @@ best_sol = None
 while True:
     sol, fit = multi_start(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, beta, delta, rho, max_agl,
                            heuristic_sol)
+    print(fit)
     if fit < best_val:
         best_val = fit
         best_sol = sol
         print(f"Incumbent solution: {np.round(best_val, 3)}")
     else:
         print(f"Current best: {np.round(best_val, 3)}")
-    if best_val <= 833.5:
+    if best_val <= 1300.:
         break
 # label, fitness = split(n, sol, q, d, c, w, max_load)
 # trip = label2route(n, label, s, max_route_len)

@@ -131,13 +131,14 @@ def check_spaced(space_hash: np.ndarray, val: float, delta: float) -> bool:
 
 @njit(fastmath=True)
 def optimize(cx, cy, max_route_len, n, q, d, c, w, max_dist, size, pm, alpha, beta, delta, max_agl, h_sol):
+    # todo: add artificial penalty function to objective and increase the penalty factor
     print("compiled")
     pool, ind_fit, restart = get_initial_solution(n, size, q, d, c, w, max_dist, delta, h_sol)
     ordered_idx = np.argsort(ind_fit)
     pool = pool[ordered_idx, :]
     ind_fit = ind_fit[ordered_idx]
     neighbor = neighbourhood_gen(cx, cy, max_agl)
-    space_hash = np.zeros(50000)
+    space_hash = np.zeros(500000)
     for sol in pool:
         _, fitness = split(n, sol, q, d, c, w, max_dist)
         hash_idx = int(fitness / delta)

@@ -1,11 +1,11 @@
 import numpy as np
 from numba import njit, int32
 from usecase.dvrp.utils.route.angle import get_angle, near_neighbor
-from usecase.dvrp.utils.heuristics.local_search.single_relocate import m1_cost_inter, m1_cost_intra, do_m1_inter, \
-    do_m1_intra
-from usecase.dvrp.utils.heuristics.local_search.double_relocate import m2_cost_inter, do_m2_inter
-from usecase.dvrp.utils.heuristics.local_search.double_reverse_relocate import m3_cost_inter, do_m3_inter
+from usecase.dvrp.utils.heuristics.local_search.single_relocate import m1_cost_inter, do_m1_inter, do_m1_intra
+from usecase.dvrp.utils.heuristics.local_search.double_relocate import m2_cost_inter, do_m2_inter, do_m2_intra
+from usecase.dvrp.utils.heuristics.local_search.double_reverse_relocate import m3_cost_inter, do_m3_inter, do_m3_intra
 from usecase.dvrp.utils.heuristics.local_search.single_inter_swap import m4_cost_inter, do_m4_inter
+from usecase.dvrp.utils.heuristics.local_search.asm_inter_swap import m5_cost_inter, do_m5_inter
 from usecase.dvrp.utils.route.repr import trip_lookup, trip_lookup_precedence
 
 
@@ -44,14 +44,27 @@ def descend(n, c, trip_dmd, q, w, lookup, neighbor, trip_num, lookup_prev, looku
                 u = j
                 u_prev = lookup_prev[u]
                 x = lookup_next[u]
+                x_post = lookup_next[x]
                 v = 0
                 y = 0
                 u_dmd = q[u]
+                x_dmd = q[x]
                 gain = m1_cost_inter(c, u_prev, u, x, v, y)
                 if gain > 0:
                     do_m1_inter(r1, r2, pos2, lookup, trip_dmd, u_dmd, trip_num, lookup_prev, lookup_next, u_prev, u, x,
                                 v, y)
                     return gain
+                if x:
+                    gain2 = m2_cost_inter(c, u_prev, u, x, x_post, v, y)
+                    if gain2 > 0:
+                        do_m2_inter(r1, r2, pos2, lookup, trip_dmd, u_dmd, x_dmd, trip_num, lookup_prev, lookup_next,
+                                    u_prev, u, x, x_post, v, y)
+                        return gain2
+                    gain3 = m3_cost_inter(c, u_prev, u, x, x_post, v, y)
+                    if gain3 > 0:
+                        do_m3_inter(r1, r2, pos2, lookup, trip_dmd, u_dmd, x_dmd, trip_num, lookup_prev, lookup_next,
+                                    u_prev, u, x, x_post, v, y)
+                        return gain3
             break
 
     for i, j in neighbor:
@@ -96,12 +109,28 @@ def descend(n, c, trip_dmd, q, w, lookup, neighbor, trip_num, lookup_prev, looku
                     do_m4_inter(r1, r2, pos1, pos2, u_prev, u, x, v_prev, v, y, lookup, lookup_prev, lookup_next,
                                 trip_dmd, u_dmd, v_dmd)
                     return gain4
+            if x and trip_dmd[r1] - u_dmd - x_dmd + v_dmd <= w and trip_dmd[r2] - v_dmd + u_dmd + x_dmd <= w:
+                gain5 = m5_cost_inter(c, u_prev, u, x, x_post, v_prev, v, y)
+                if gain5 > 0:
+                    do_m5_inter(r1, r2, pos1, pos2, lookup, trip_dmd, u_dmd, x_dmd, v_dmd, trip_num, lookup_prev,
+                                lookup_next, u_prev, u, x, x_post, v_prev, v, y)
+                    return gain5
         else:  # intra route case
             if u != y:
-                gain = m1_cost_intra(c, u_prev, u, x, v, y)
+                gain = m1_cost_inter(c, u_prev, u, x, v, y)
                 if gain > 0:
                     do_m1_intra(pos1, pos2, u_prev, u, x, v, y, lookup, lookup_next, lookup_prev)
                     return gain
+            if x and x != v and u != y:  # u is not the last element (x not 0), (u x) and (v y) no overlap
+                gain2 = m2_cost_inter(c, u_prev, u, x, x_post, v, y)
+                if gain2 > 0:
+                    do_m2_intra(pos1, pos2, u_prev, u, x, x_post, v, y, lookup, lookup_next, lookup_prev)
+                    return gain2
+                gain3 = m3_cost_inter(c, u_prev, u, x, x_post, v, y)
+                if gain3 > 0:
+                    do_m3_intra(pos1, pos2, u_prev, u, x, x_post, v, y, lookup, lookup_next, lookup_prev)
+                    return gain3
+
             # pass
     return gain
 # for testings
